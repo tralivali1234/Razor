@@ -33,7 +33,7 @@ namespace Microsoft.AspNetCore.Razor.TagHelpers
         /// </summary>
         /// <param name="htmlContent">The <see cref="IHtmlContent"/> that replaces the content.</param>
         /// <returns>A reference to this instance after the set operation has completed.</returns>
-        public TagHelperContent SetContent(IHtmlContent htmlContent)
+        public virtual TagHelperContent SetContent(IHtmlContent htmlContent)
         {
             HtmlContentBuilderExtensions.SetContent(this, htmlContent);
             return this;
@@ -47,7 +47,7 @@ namespace Microsoft.AspNetCore.Razor.TagHelpers
         /// as-provided and will be HTML encoded before being written.
         /// </param>
         /// <returns>A reference to this instance after the set operation has completed.</returns>
-        public TagHelperContent SetContent(string unencoded)
+        public virtual TagHelperContent SetContent(string unencoded)
         {
             HtmlContentBuilderExtensions.SetContent(this, unencoded);
             return this;
@@ -149,6 +149,8 @@ namespace Microsoft.AspNetCore.Razor.TagHelpers
 
         /// <inheritdoc />
         public abstract void WriteTo(TextWriter writer, HtmlEncoder encoder);
+
+        public abstract void Reset();
 
         /// <inheritdoc />
         IHtmlContentBuilder IHtmlContentBuilder.AppendHtml(IHtmlContent content)

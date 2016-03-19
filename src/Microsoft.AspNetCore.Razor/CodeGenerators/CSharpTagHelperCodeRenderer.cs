@@ -587,13 +587,8 @@ namespace Microsoft.AspNetCore.Razor.CodeGenerators
                 using (_writer.BuildScope())
                 {
                     _writer
-                        .Write(tagHelperOutputAccessor)
-                        .Write(".")
-                        .WriteStartAssignment(_tagHelperContext.TagHelperOutputContentPropertyName)
                         .Write("await ")
-                        .WriteInstanceMethodInvocation(
-                            tagHelperOutputAccessor,
-                            _tagHelperContext.TagHelperOutputGetChildContentAsyncMethodName);
+                        .WriteInstanceMethodInvocation(ExecutionContextVariableName, "SetOutputChildContentAsync");
                 }
             }
 
@@ -620,12 +615,8 @@ namespace Microsoft.AspNetCore.Razor.CodeGenerators
 
         private void RenderRunTagHelpers()
         {
-            _writer.Write(ExecutionContextVariableName)
-                   .Write(".")
-                   .WriteStartAssignment(_tagHelperContext.ExecutionContextOutputPropertyName)
-                   .Write("await ")
-                   .WriteStartInstanceMethodInvocation(RunnerVariableName,
-                                                       _tagHelperContext.RunnerRunAsyncMethodName);
+            _writer.Write("await ")
+                .WriteStartInstanceMethodInvocation(RunnerVariableName, _tagHelperContext.RunnerRunAsyncMethodName);
 
             _writer.Write(ExecutionContextVariableName)
                    .WriteEndMethodInvocation();

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Razor.TagHelpers;
 using Microsoft.Extensions.Internal;
 
@@ -44,7 +45,7 @@ namespace Microsoft.AspNetCore.Razor.Runtime.TagHelpers
             string uniqueId,
             Func<Task> executeChildContentAsync,
             Action<HtmlEncoder> startTagHelperWritingScope,
-            Func<TagHelperContent> endTagHelperWritingScope)
+            Func<IHtmlContent> endTagHelperWritingScope)
         {
             if (tagName == null)
             {
@@ -140,7 +141,7 @@ namespace Microsoft.AspNetCore.Razor.Runtime.TagHelpers
                 string uniqueId,
                 Func<Task> executeChildContentAsync,
                 Action<HtmlEncoder> startTagHelperWritingScope,
-                Func<TagHelperContent> endTagHelperWritingScope)
+                Func<IHtmlContent> endTagHelperWritingScope)
             {
                 TagHelperExecutionContext tagHelperExecutionContext;
 

@@ -14,7 +14,7 @@ namespace Microsoft.AspNetCore.Razor.TagHelpers
     /// </summary>
     public class TagHelperOutput : IHtmlContentContainer
     {
-        private readonly Func<bool, HtmlEncoder, Task<TagHelperContent>> _getChildContentAsync;
+        private Func<bool, HtmlEncoder, Task<TagHelperContent>> _getChildContentAsync;
         private TagHelperAttributeList _attributes;
         private TagHelperContent _preElement;
         private TagHelperContent _preContent;
@@ -54,6 +54,29 @@ namespace Microsoft.AspNetCore.Razor.TagHelpers
             TagName = tagName;
             _getChildContentAsync = getChildContentAsync;
             _attributes = attributes;
+        }
+
+        public TagHelperOutput(
+            string tagName,
+            Func<bool, HtmlEncoder, Task<TagHelperContent>> getChildContentAsync)
+            : this(tagName, new TagHelperAttributeList(), getChildContentAsync)
+        {
+        }
+
+        public void Reset(Func<bool, HtmlEncoder, Task<TagHelperContent>> getChildContentAsync)
+        {
+            _getChildContentAsync = getChildContentAsync;
+            _attributes?.Clear();
+
+            _preElement?.Clear();
+            _preContent?.Clear();
+
+            _content?.Reset();
+
+            _postContent?.Clear();
+            _postElement?.Clear();
+
+            _wasSuppressOutputCalled = false;
         }
 
         /// <summary>
@@ -336,7 +359,7 @@ namespace Microsoft.AspNetCore.Razor.TagHelpers
             {
                 destination.AppendHtml("<");
                 destination.AppendHtml(TagName);
-                
+
                 CopyAttributesTo(destination);
 
                 if (TagMode == TagMode.SelfClosing)

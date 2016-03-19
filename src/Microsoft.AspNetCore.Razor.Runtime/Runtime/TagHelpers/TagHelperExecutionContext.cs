@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Razor.TagHelpers;
 
 namespace Microsoft.AspNetCore.Razor.Runtime.TagHelpers
@@ -16,14 +17,16 @@ namespace Microsoft.AspNetCore.Razor.Runtime.TagHelpers
     {
         private readonly List<ITagHelper> _tagHelpers;
         private readonly Action<HtmlEncoder> _startTagHelperWritingScope;
-        private readonly Func<TagHelperContent> _endTagHelperWritingScope;
-        private TagHelperContent _childContent;
+        private readonly Func<IHtmlContent> _endTagHelperWritingScope;
+        private readonly Func<bool, HtmlEncoder, Task<TagHelperContent>> _getChildContentAsyncCache;
+        private TagHelperContext _tagHelperContext;
+
+        private IHtmlContent _childContent;
         private string _tagName;
         private string _uniqueId;
         private TagMode _tagMode;
         private Func<Task> _executeChildContentAsync;
-        private Dictionary<HtmlEncoder, TagHelperContent> _perEncoderChildContent;
-        private TagHelperAttributeList _htmlAttributes;
+        private Dictionary<HtmlEncoder, IHtmlContent> _perEncoderChildContent;
         private TagHelperAttributeList _allAttributes;
 
         /// <summary>
@@ -61,7 +64,7 @@ namespace Microsoft.AspNetCore.Razor.Runtime.TagHelpers
             string uniqueId,
             Func<Task> executeChildContentAsync,
             Action<HtmlEncoder> startTagHelperWritingScope,
-            Func<TagHelperContent> endTagHelperWritingScope)
+            Func<IHtmlContent> endTagHelperWritingScope)
         {
             if (startTagHelperWritingScope == null)
             {
@@ -74,11 +77,12 @@ namespace Microsoft.AspNetCore.Razor.Runtime.TagHelpers
             }
 
             _tagHelpers = new List<ITagHelper>();
-
-            Reinitialize(tagName, tagMode, items, uniqueId, executeChildContentAsync);
-
+            _allAttributes = new TagHelperAttributeList();
+            _getChildContentAsyncCache = GetChildContentAsync;
             _startTagHelperWritingScope = startTagHelperWritingScope;
             _endTagHelperWritingScope = endTagHelperWritingScope;
+
+            Reinitialize(tagName, tagMode, items, uniqueId, executeChildContentAsync);
         }
 
         /// <summary>
@@ -111,15 +115,9 @@ namespace Microsoft.AspNetCore.Razor.Runtime.TagHelpers
         /// <summary>
         /// The <see cref="ITagHelper"/>s' output.
         /// </summary>
-        public TagHelperOutput Output { get; set; }
+        public TagHelperOutput Output { get; private set; }
 
-        public TagHelperContext CreateTagHelperContext() =>
-            new TagHelperContext(_allAttributes, Items, _uniqueId);
-        public TagHelperOutput CreateTagHelperOutput() =>
-            new TagHelperOutput(_tagName, _htmlAttributes, GetChildContentAsync)
-            {
-                TagMode = _tagMode
-            };
+        public TagHelperContext CreateTagHelperContext() => _tagHelperContext;
 
         /// <summary>
         /// Tracks the given <paramref name="tagHelper"/>.
@@ -177,10 +175,7 @@ namespace Microsoft.AspNetCore.Razor.Runtime.TagHelpers
                 throw new ArgumentNullException(nameof(attribute));
             }
 
-            EnsureHtmlAttributes();
-            EnsureAllAttributes();
-
-            _htmlAttributes.Add(attribute);
+            Output.Attributes.Add(attribute);
             _allAttributes.Add(attribute);
         }
 
@@ -195,8 +190,6 @@ namespace Microsoft.AspNetCore.Razor.Runtime.TagHelpers
             {
                 throw new ArgumentNullException(nameof(name));
             }
-
-            EnsureAllAttributes();
 
             _allAttributes.Add(name, value);
         }
@@ -243,16 +236,53 @@ namespace Microsoft.AspNetCore.Razor.Runtime.TagHelpers
             _executeChildContentAsync = executeChildContentAsync;
             _tagHelpers.Clear();
             _perEncoderChildContent?.Clear();
-            _htmlAttributes = null;
-            _allAttributes = null;
+            _allAttributes?.Clear();
             _childContent = null;
+
+            if (_tagHelperContext == null)
+            {
+                _tagHelperContext = new TagHelperContext(_allAttributes, Items, _uniqueId);
+            }
+            else
+            {
+                _tagHelperContext.Reset(Items, _uniqueId);
+            }
+
+            if (Output == null)
+            {
+                Output = new TagHelperOutput(_tagName, _getChildContentAsyncCache)
+                {
+                    TagMode = _tagMode
+                };
+            }
+            else
+            {
+                Output.Reset(_getChildContentAsyncCache);
+                Output.TagName = _tagName;
+                Output.TagMode = _tagMode;
+            }
+        }
+
+        public async Task SetOutputChildContentAsync()
+        {
+            IHtmlContent childContent;
+            childContent = _childContent;
+
+            if (childContent == null)
+            {
+                _startTagHelperWritingScope(null);
+                await _executeChildContentAsync();
+                childContent = _endTagHelperWritingScope();
+            }
+
+            Output.Content.SetContent(childContent);
         }
 
         // Internal for testing.
         internal async Task<TagHelperContent> GetChildContentAsync(bool useCachedResult, HtmlEncoder encoder)
         {
             // Get cached content for this encoder.
-            TagHelperContent childContent;
+            IHtmlContent childContent;
             if (encoder == null)
             {
                 childContent = _childContent;
@@ -262,7 +292,7 @@ namespace Microsoft.AspNetCore.Razor.Runtime.TagHelpers
                 if (_perEncoderChildContent == null)
                 {
                     childContent = null;
-                    _perEncoderChildContent = new Dictionary<HtmlEncoder, TagHelperContent>();
+                    _perEncoderChildContent = new Dictionary<HtmlEncoder, IHtmlContent>();
                 }
                 else
                 {
@@ -286,23 +316,8 @@ namespace Microsoft.AspNetCore.Razor.Runtime.TagHelpers
                 }
             }
 
+
             return new DefaultTagHelperContent().SetContent(childContent);
-        }
-
-        private void EnsureHtmlAttributes()
-        {
-            if (_htmlAttributes == null)
-            {
-                _htmlAttributes = new TagHelperAttributeList();
-            }
-        }
-
-        private void EnsureAllAttributes()
-        {
-            if (_allAttributes == null)
-            {
-                _allAttributes = new TagHelperAttributeList();
-            }
         }
     }
 }
