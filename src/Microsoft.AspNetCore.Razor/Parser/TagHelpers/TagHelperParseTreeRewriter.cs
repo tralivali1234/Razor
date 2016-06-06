@@ -11,9 +11,9 @@ using Microsoft.AspNetCore.Razor.Parser.SyntaxTree;
 using Microsoft.AspNetCore.Razor.TagHelpers;
 using Microsoft.AspNetCore.Razor.Tokenizer.Symbols;
 
-namespace Microsoft.AspNetCore.Razor.Parser.TagHelpers.Internal
+namespace Microsoft.AspNetCore.Razor.Parser.TagHelpers
 {
-    public class TagHelperParseTreeRewriter : ISyntaxTreeRewriter
+    internal class TagHelperParseTreeRewriter : ISyntaxTreeRewriter
     {
         // Internal for testing.
         // Null characters are invalid markup for HTML attribute values.

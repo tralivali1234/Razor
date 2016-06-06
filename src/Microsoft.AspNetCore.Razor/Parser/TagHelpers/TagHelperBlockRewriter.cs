@@ -11,9 +11,9 @@ using Microsoft.AspNetCore.Razor.Parser.SyntaxTree;
 using Microsoft.AspNetCore.Razor.TagHelpers;
 using Microsoft.AspNetCore.Razor.Tokenizer.Symbols;
 
-namespace Microsoft.AspNetCore.Razor.Parser.TagHelpers.Internal
+namespace Microsoft.AspNetCore.Razor.Parser.TagHelpers
 {
-    public static class TagHelperBlockRewriter
+    internal static class TagHelperBlockRewriter
     {
         private static readonly string StringTypeName = typeof(string).FullName;
 
