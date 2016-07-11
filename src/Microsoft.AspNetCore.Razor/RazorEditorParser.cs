@@ -172,6 +172,7 @@ namespace Microsoft.AspNetCore.Razor
                 changeString = change.ToString();
 #endif
 
+#endif
                 // Check if we can partial-parse
                 if (CurrentParseTree != null && _parser.IsIdle)
                 {
