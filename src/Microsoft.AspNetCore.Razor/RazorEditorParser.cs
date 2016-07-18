@@ -133,6 +133,11 @@ namespace Microsoft.AspNetCore.Razor
             return null;
         }
 
+        public void QueueChange(TextChange change)
+        {
+            _parser.QueueChange(change);
+        }
+
         /// <summary>
         /// Determines if a change will cause a structural change to the document and if not, applies it to the
         /// existing tree. If a structural change would occur, automatically starts a reparse.
@@ -171,8 +176,6 @@ namespace Microsoft.AspNetCore.Razor
                 // Capture the string value of the change while we're synchronized
                 changeString = change.ToString();
 #endif
-
-#endif
                 // Check if we can partial-parse
                 if (CurrentParseTree != null && _parser.IsIdle)
                 {
@@ -183,7 +186,7 @@ namespace Microsoft.AspNetCore.Razor
             // If partial parsing failed or there were outstanding parser tasks, start a full reparse
             if ((result & PartialParseResult.Rejected) == PartialParseResult.Rejected)
             {
-                _parser.QueueChange(change);
+                //_parser.QueueChange(change);
             }
 
             // Otherwise, remember if this was provisionally accepted for next partial parse
