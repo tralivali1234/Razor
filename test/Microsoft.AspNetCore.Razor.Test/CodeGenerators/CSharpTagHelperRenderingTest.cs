@@ -1898,30 +1898,30 @@ namespace Microsoft.AspNetCore.Razor.Test.CodeGenerators
                 // Note: The baseline resource name is equivalent to the test resource name.
                 return new TheoryData<string, string, IEnumerable<TagHelperDescriptor>>
                 {
-                    { "IncompleteTagHelper", null, DefaultPAndInputTagHelperDescriptors },
-                    { "SingleTagHelper", null, DefaultPAndInputTagHelperDescriptors },
-                    { "SingleTagHelperWithNewlineBeforeAttributes", null, DefaultPAndInputTagHelperDescriptors },
-                    { "TagHelpersWithWeirdlySpacedAttributes", null, DefaultPAndInputTagHelperDescriptors },
-                    { "BasicTagHelpers", null, DefaultPAndInputTagHelperDescriptors },
-                    { "BasicTagHelpers.RemoveTagHelper", null, DefaultPAndInputTagHelperDescriptors },
-                    { "BasicTagHelpers.Prefixed", null, PrefixedPAndInputTagHelperDescriptors },
-                    { "ComplexTagHelpers", null, DefaultPAndInputTagHelperDescriptors },
-                    { "DuplicateTargetTagHelper", null, DuplicateTargetTagHelperDescriptors },
-                    { "EmptyAttributeTagHelpers", null, DefaultPAndInputTagHelperDescriptors },
-                    { "EscapedTagHelpers", null, DefaultPAndInputTagHelperDescriptors },
-                    { "AttributeTargetingTagHelpers", null, AttributeTargetingTagHelperDescriptors },
-                    { "PrefixedAttributeTagHelpers", null, PrefixedAttributeTagHelperDescriptors },
-                    {
-                        "PrefixedAttributeTagHelpers",
-                        "PrefixedAttributeTagHelpers.Reversed",
-                        PrefixedAttributeTagHelperDescriptors.Reverse()
-                    },
-                    { "DuplicateAttributeTagHelpers", null, DefaultPAndInputTagHelperDescriptors },
-                    { "DynamicAttributeTagHelpers", null, DynamicAttributeTagHelpers_Descriptors },
-                    { "TransitionsInTagHelperAttributes", null, DefaultPAndInputTagHelperDescriptors },
-                    { "NestedScriptTagTagHelpers", null, DefaultPAndInputTagHelperDescriptors },
+                    //{ "IncompleteTagHelper", null, DefaultPAndInputTagHelperDescriptors },
+                    //{ "SingleTagHelper", null, DefaultPAndInputTagHelperDescriptors },
+                    //{ "SingleTagHelperWithNewlineBeforeAttributes", null, DefaultPAndInputTagHelperDescriptors },
+                    //{ "TagHelpersWithWeirdlySpacedAttributes", null, DefaultPAndInputTagHelperDescriptors },
+                    //{ "BasicTagHelpers", null, DefaultPAndInputTagHelperDescriptors },
+                    //{ "BasicTagHelpers.RemoveTagHelper", null, DefaultPAndInputTagHelperDescriptors },
+                    //{ "BasicTagHelpers.Prefixed", null, PrefixedPAndInputTagHelperDescriptors },
+                    //{ "ComplexTagHelpers", null, DefaultPAndInputTagHelperDescriptors },
+                    //{ "DuplicateTargetTagHelper", null, DuplicateTargetTagHelperDescriptors },
+                    //{ "EmptyAttributeTagHelpers", null, DefaultPAndInputTagHelperDescriptors },
+                    //{ "EscapedTagHelpers", null, DefaultPAndInputTagHelperDescriptors },
+                    //{ "AttributeTargetingTagHelpers", null, AttributeTargetingTagHelperDescriptors },
+                    //{ "PrefixedAttributeTagHelpers", null, PrefixedAttributeTagHelperDescriptors },
+                    //{
+                    //    "PrefixedAttributeTagHelpers",
+                    //    "PrefixedAttributeTagHelpers.Reversed",
+                    //    PrefixedAttributeTagHelperDescriptors.Reverse()
+                    //},
+                    //{ "DuplicateAttributeTagHelpers", null, DefaultPAndInputTagHelperDescriptors },
+                    //{ "DynamicAttributeTagHelpers", null, DynamicAttributeTagHelpers_Descriptors },
+                    //{ "TransitionsInTagHelperAttributes", null, DefaultPAndInputTagHelperDescriptors },
+                    //{ "NestedScriptTagTagHelpers", null, DefaultPAndInputTagHelperDescriptors },
                     { "SymbolBoundAttributes", null, SymbolBoundTagHelperDescriptors },
-                    { "EnumTagHelpers", null, EnumTagHelperDescriptors },
+                    //{ "EnumTagHelpers", null, EnumTagHelperDescriptors },
                 };
             }
         }
