@@ -3,15 +3,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
-using Microsoft.AspNetCore.Razor.Editor;
-using Microsoft.AspNetCore.Razor.Chunks.Generators;
-using Microsoft.AspNetCore.Razor.Text;
-using Microsoft.AspNetCore.Razor.Tokenizer.Symbols;
+using Microsoft.AspNetCore.Razor.Evolution.ChunkGenerationPhase;
+using Microsoft.AspNetCore.Razor.Evolution.SyntaxTreePhase.Editor;
+using Microsoft.AspNetCore.Razor.Evolution.SyntaxTreePhase.Tokenizer;
 
-namespace Microsoft.AspNetCore.Razor.Parser.SyntaxTree
+namespace Microsoft.AspNetCore.Razor.Evolution.SyntaxTreePhase
 {
     public class Span : SyntaxTreeNode
     {
@@ -24,30 +22,22 @@ namespace Microsoft.AspNetCore.Razor.Parser.SyntaxTree
             ReplaceWith(builder);
         }
 
+        public ISpanChunkGenerator ChunkGenerator { get; private set; }
+
         public SpanKind Kind { get; private set; }
         public IReadOnlyList<ISymbol> Symbols { get; private set; }
 
         // Allow test code to re-link spans
-        public Span Previous { get; protected internal set; }
-        public Span Next { get; protected internal set; }
+        public Span Previous { get; internal set; }
+        public Span Next { get; internal set; }
 
         public SpanEditHandler EditHandler { get; private set; }
-        public ISpanChunkGenerator ChunkGenerator { get; private set; }
 
-        public override bool IsBlock
-        {
-            get { return false; }
-        }
+        public override bool IsBlock => false;
 
-        public override int Length
-        {
-            get { return Content.Length; }
-        }
+        public override int Length => Content.Length;
 
-        public override SourceLocation Start
-        {
-            get { return _start; }
-        }
+        public override SourceLocation Start => _start;
 
         public string Content
         {
@@ -69,13 +59,6 @@ namespace Microsoft.AspNetCore.Razor.Parser.SyntaxTree
             }
         }
 
-        public void Change(Action<SpanBuilder> changes)
-        {
-            var builder = new SpanBuilder(this);
-            changes(builder);
-            ReplaceWith(builder);
-        }
-
         public void ReplaceWith(SpanBuilder builder)
         {
             Kind = builder.Kind;
@@ -89,17 +72,6 @@ namespace Microsoft.AspNetCore.Razor.Parser.SyntaxTree
             builder.Reset();
         }
 
-        /// <summary>
-        /// Accepts the specified visitor
-        /// </summary>
-        /// <remarks>
-        /// Calls the VisitSpan method on the specified visitor, passing in this
-        /// </remarks>
-        public override void Accept(ParserVisitor visitor)
-        {
-            visitor.VisitSpan(this);
-        }
-
         public override string ToString()
         {
             var builder = new StringBuilder();
@@ -107,8 +79,7 @@ namespace Microsoft.AspNetCore.Razor.Parser.SyntaxTree
             builder.AppendFormat(" Span at {0}::{1} - [{2}]", Start, Length, Content);
             builder.Append(" Edit: <");
             builder.Append(EditHandler.ToString());
-            builder.Append(">");
-            builder.Append(" Gen: <");
+            builder.Append("> Gen: <");
             builder.Append(ChunkGenerator.ToString());
             builder.Append("> {");
             builder.Append(string.Join(";", Symbols.GroupBy(sym => sym.GetType()).Select(grp => string.Concat(grp.Key.Name, ":", grp.Count()))));
@@ -127,11 +98,6 @@ namespace Microsoft.AspNetCore.Razor.Parser.SyntaxTree
                 current._start = tracker.CurrentLocation;
                 tracker.UpdateLocation(current.Content);
             }
-        }
-
-        internal void SetStart(SourceLocation newStart)
-        {
-            _start = newStart;
         }
 
         /// <summary>

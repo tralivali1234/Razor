@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using Microsoft.AspNetCore.Razor.Parser.SyntaxTree;
 
 namespace Microsoft.AspNetCore.Razor.Chunks
@@ -25,8 +26,6 @@ namespace Microsoft.AspNetCore.Razor.Chunks
 
         public void AddChunk(Chunk chunk, SyntaxTreeNode association, bool topLevel = false)
         {
-            _lastChunk = chunk;
-
             chunk.Start = association.Start;
             chunk.Association = association;
 
