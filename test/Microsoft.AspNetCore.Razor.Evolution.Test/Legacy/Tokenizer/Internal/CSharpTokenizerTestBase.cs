@@ -14,7 +14,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
 
         protected override Tokenizer<CSharpSymbol, CSharpSymbolType> CreateTokenizer(ITextDocument source)
         {
-            return new CSharpTokenizer(source, new ErrorSink());
+            return new CSharpTokenizer(source);
         }
 
         protected void TestSingleToken(string text, CSharpSymbolType expectedSymbolType)

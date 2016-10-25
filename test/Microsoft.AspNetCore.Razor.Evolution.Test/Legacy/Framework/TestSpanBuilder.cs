@@ -146,7 +146,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
         {
             return self
                 .With(new ImplicitExpressionEditHandler(
-                    (content, _) => SpanConstructor.TestTokenizer(content),
+                    (content) => SpanConstructor.TestTokenizer(content),
                     CSharpCodeParser.DefaultKeywords,
                     acceptTrailingDot: true))
                 .With(new MarkupChunkGenerator())
@@ -166,16 +166,14 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
         public SpanFactory()
         {
             LocationTracker = new SourceLocationTracker();
-            ErrorSink = new ErrorSink();
 
-            MarkupTokenizerFactory = doc => new HtmlTokenizer(doc, ErrorSink);
-            CodeTokenizerFactory = doc => new CSharpTokenizer(doc, ErrorSink);
+            MarkupTokenizerFactory = doc => new HtmlTokenizer(doc);
+            CodeTokenizerFactory = doc => new CSharpTokenizer(doc);
         }
 
         public Func<ITextDocument, HtmlTokenizer> MarkupTokenizerFactory { get; }
         public Func<ITextDocument, CSharpTokenizer> CodeTokenizerFactory { get; }
         public SourceLocationTracker LocationTracker { get; }
-        public ErrorSink ErrorSink { get; }
 
 
         public SpanConstructor Span(SpanKind kind, string content, CSharpSymbolType type)
@@ -270,7 +268,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
             bool atEndOfSpan)
         {
             return self.With(new AutoCompleteEditHandler(
-                (content, _) => SpanConstructor.TestTokenizer(content),
+                (content) => SpanConstructor.TestTokenizer(content),
                 autoCompleteAtEndOfSpan: atEndOfSpan)
             {
                 AutoCompleteString = autoCompleteString
@@ -311,7 +309,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
         public SpanConstructor AsImplicitExpression(ISet<string> keywords, bool acceptTrailingDot)
         {
             return _self
-                .With(new ImplicitExpressionEditHandler((content, _) => SpanConstructor.TestTokenizer(content), keywords, acceptTrailingDot))
+                .With(new ImplicitExpressionEditHandler((content) => SpanConstructor.TestTokenizer(content), keywords, acceptTrailingDot))
                 .With(new ExpressionChunkGenerator());
         }
 
@@ -377,7 +375,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
         {
             Builder = new SpanBuilder();
             Builder.Kind = kind;
-            Builder.EditHandler = SpanEditHandler.CreateDefault((content, _) => SpanConstructor.TestTokenizer(content));
+            Builder.EditHandler = SpanEditHandler.CreateDefault((content) => SpanConstructor.TestTokenizer(content));
             foreach (ISymbol sym in symbols)
             {
                 Builder.Accept(sym);

@@ -13,20 +13,20 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
         where TSymbol : SymbolBase<TSymbolType>
     {
         public abstract string GetSample(TSymbolType type);
-        public abstract TTokenizer CreateTokenizer(ITextDocument source, ErrorSink errorSink);
+        public abstract TTokenizer CreateTokenizer(ITextDocument source);
         public abstract TSymbolType FlipBracket(TSymbolType bracket);
         public abstract TSymbol CreateMarkerSymbol(SourceLocation location);
 
-        public virtual IEnumerable<TSymbol> TokenizeString(string content, ErrorSink errorSink)
+        public virtual IEnumerable<TSymbol> TokenizeString(string content)
         {
-            return TokenizeString(SourceLocation.Zero, content, errorSink);
+            return TokenizeString(SourceLocation.Zero, content);
         }
 
-        public virtual IEnumerable<TSymbol> TokenizeString(SourceLocation start, string input, ErrorSink errorSink)
+        public virtual IEnumerable<TSymbol> TokenizeString(SourceLocation start, string input)
         {
             using (var reader = new SeekableTextReader(input))
             {
-                var tok = CreateTokenizer(reader, errorSink);
+                var tok = CreateTokenizer(reader);
                 TSymbol sym;
                 while ((sym = tok.NextSymbol()) != null)
                 {
@@ -88,11 +88,11 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
 
         public virtual Tuple<TSymbol, TSymbol> SplitSymbol(TSymbol symbol, int splitAt, TSymbolType leftType)
         {
-            var left = CreateSymbol(symbol.Start, symbol.Content.Substring(0, splitAt), leftType);
+            var left = CreateSymbol(symbol.Start, symbol.Content.Substring(0, splitAt), leftType, RazorError.EmptyArray);
             TSymbol right = null;
             if (splitAt < symbol.Content.Length)
             {
-                right = CreateSymbol(SourceLocationTracker.CalculateNewLocation(symbol.Start, left.Content), symbol.Content.Substring(splitAt), symbol.Type);
+                right = CreateSymbol(SourceLocationTracker.CalculateNewLocation(symbol.Start, left.Content), symbol.Content.Substring(splitAt), symbol.Type, symbol.Errors);
             }
             return Tuple.Create(left, right);
         }
@@ -104,6 +104,6 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
             return type == KnownSymbolType.Unknown || !Equals(GetKnownSymbolType(type), GetKnownSymbolType(KnownSymbolType.Unknown));
         }
 
-        protected abstract TSymbol CreateSymbol(SourceLocation location, string content, TSymbolType type);
+        protected abstract TSymbol CreateSymbol(SourceLocation location, string content, TSymbolType type, IReadOnlyList<RazorError> errors);
     }
 }

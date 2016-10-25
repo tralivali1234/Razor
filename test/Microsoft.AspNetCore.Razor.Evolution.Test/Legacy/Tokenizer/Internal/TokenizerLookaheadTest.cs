@@ -59,7 +59,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
         private class ExposedTokenizer : Tokenizer<CSharpSymbol, CSharpSymbolType>
         {
             public ExposedTokenizer(string input)
-                : base(new SeekableTextReader(new StringReader(input)), new ErrorSink())
+                : base(new SeekableTextReader(new StringReader(input)))
             {
             }
 
@@ -106,7 +106,8 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
             protected override CSharpSymbol CreateSymbol(
                 SourceLocation start,
                 string content,
-                CSharpSymbolType type)
+                CSharpSymbolType type,
+                IReadOnlyList<RazorError> errors)
             {
                 throw new NotImplementedException();
             }

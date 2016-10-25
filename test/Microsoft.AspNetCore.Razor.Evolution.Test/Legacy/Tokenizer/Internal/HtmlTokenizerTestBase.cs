@@ -14,7 +14,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
 
         protected override Tokenizer<HtmlSymbol, HtmlSymbolType> CreateTokenizer(ITextDocument source)
         {
-            return new HtmlTokenizer(source, new ErrorSink());
+            return new HtmlTokenizer(source);
         }
 
         protected void TestSingleToken(string text, HtmlSymbolType expectedSymbolType)

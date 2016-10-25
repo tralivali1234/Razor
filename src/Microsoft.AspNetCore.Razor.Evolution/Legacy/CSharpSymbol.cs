@@ -2,13 +2,14 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Collections.Generic;
 
 namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
 {
     public class CSharpSymbol : SymbolBase<CSharpSymbolType>
     {
         public CSharpSymbol(int absoluteIndex, int lineIndex, int characterIndex, string content, CSharpSymbolType type)
-            : base(new SourceLocation(absoluteIndex, lineIndex, characterIndex), content, type)
+            : this(new SourceLocation(absoluteIndex, lineIndex, characterIndex), content, type, RazorError.EmptyArray)
         {
             if (content == null)
             {
@@ -17,7 +18,35 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
         }
 
         public CSharpSymbol(SourceLocation start, string content, CSharpSymbolType type)
-            : base(start, content, type)
+            : this(start, content, type, RazorError.EmptyArray)
+        {
+            if (content == null)
+            {
+                throw new ArgumentNullException(nameof(content));
+            }
+        }
+
+        public CSharpSymbol(
+            int offset,
+            int line,
+            int column,
+            string content,
+            CSharpSymbolType type,
+            IReadOnlyList<RazorError> errors)
+            : base(new SourceLocation(offset, line, column), content, type, errors)
+        {
+            if (content == null)
+            {
+                throw new ArgumentNullException(nameof(content));
+            }
+        }
+
+        public CSharpSymbol(
+            SourceLocation start,
+            string content,
+            CSharpSymbolType type,
+            IReadOnlyList<RazorError> errors)
+            : base(start, content, type, errors)
         {
             if (content == null)
             {

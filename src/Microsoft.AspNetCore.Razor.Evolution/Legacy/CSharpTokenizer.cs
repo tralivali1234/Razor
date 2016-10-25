@@ -95,8 +95,8 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
             { "when", CSharpKeyword.When }
         };
 
-        public CSharpTokenizer(ITextDocument source, ErrorSink errorSink)
-            : base(source, errorSink)
+        public CSharpTokenizer(ITextDocument source)
+            : base(source)
         {
             base.CurrentState = StartState;
 
@@ -168,9 +168,9 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
             }
         }
 
-        protected override CSharpSymbol CreateSymbol(SourceLocation start, string content, CSharpSymbolType type)
+        protected override CSharpSymbol CreateSymbol(SourceLocation start, string content, CSharpSymbolType type, IReadOnlyList<RazorError> errors)
         {
-            return new CSharpSymbol(start, content, type);
+            return new CSharpSymbol(start, content, type, errors);
         }
 
         private StateResult Data()

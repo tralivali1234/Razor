@@ -10,12 +10,12 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
     {
         private static readonly int TypeHashCode = typeof(SpanEditHandler).GetHashCode();
 
-        public SpanEditHandler(Func<string, ErrorSink, IEnumerable<ISymbol>> tokenizer)
+        public SpanEditHandler(Func<string, IEnumerable<ISymbol>> tokenizer)
             : this(tokenizer, AcceptedCharacters.Any)
         {
         }
 
-        public SpanEditHandler(Func<string, ErrorSink, IEnumerable<ISymbol>> tokenizer, AcceptedCharacters accepted)
+        public SpanEditHandler(Func<string, IEnumerable<ISymbol>> tokenizer, AcceptedCharacters accepted)
         {
             AcceptedCharacters = accepted;
             Tokenizer = tokenizer;
@@ -23,19 +23,19 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
 
         public AcceptedCharacters AcceptedCharacters { get; set; }
 
-        public Func<string, ErrorSink, IEnumerable<ISymbol>> Tokenizer { get; set; }
+        public Func<string, IEnumerable<ISymbol>> Tokenizer { get; set; }
 
-        public static SpanEditHandler CreateDefault(Func<string, ErrorSink, IEnumerable<ISymbol>> tokenizer)
+        public static SpanEditHandler CreateDefault(Func<string, IEnumerable<ISymbol>> tokenizer)
         {
             return new SpanEditHandler(tokenizer);
         }
 
-        public virtual EditResult ApplyChange(Span target, TextChange change, ErrorSink errorSink)
+        public virtual EditResult ApplyChange(Span target, TextChange change)
         {
-            return ApplyChange(target, change, errorSink, force: false);
+            return ApplyChange(target, change, force: false);
         }
 
-        public virtual EditResult ApplyChange(Span target, TextChange change, ErrorSink errorSink, bool force)
+        public virtual EditResult ApplyChange(Span target, TextChange change, bool force)
         {
             var result = PartialParseResult.Accepted;
             var normalized = change.Normalize();
@@ -47,7 +47,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
             // If the change is accepted then apply the change
             if ((result & PartialParseResult.Accepted) == PartialParseResult.Accepted)
             {
-                return new EditResult(result, UpdateSpan(target, normalized, errorSink));
+                return new EditResult(result, UpdateSpan(target, normalized));
             }
             return new EditResult(result, new SpanBuilder(target));
         }
@@ -65,12 +65,12 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
             return PartialParseResult.Rejected;
         }
 
-        protected virtual SpanBuilder UpdateSpan(Span target, TextChange normalizedChange, ErrorSink errorSink)
+        protected virtual SpanBuilder UpdateSpan(Span target, TextChange normalizedChange)
         {
             var newContent = normalizedChange.ApplyChange(target);
             var newSpan = new SpanBuilder(target);
             newSpan.ClearSymbols();
-            foreach (ISymbol sym in Tokenizer(newContent, errorSink))
+            foreach (ISymbol sym in Tokenizer(newContent))
             {
                 sym.OffsetStart(target.Start);
                 newSpan.Accept(sym);

@@ -20,7 +20,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
         {
             Span = new SpanBuilder();
             Language = language;
-            var languageTokenizer = Language.CreateTokenizer(Context.Source, context.ErrorSink);
+            var languageTokenizer = Language.CreateTokenizer(Context.Source);
             _tokenizer = new TokenizerView<TTokenizer, TSymbol, TSymbolType>(languageTokenizer);
         }
 
@@ -58,7 +58,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
 
         public override void BuildSpan(SpanBuilder span, SourceLocation start, string content)
         {
-            foreach (ISymbol sym in Language.TokenizeString(start, content, Context.ErrorSink))
+            foreach (ISymbol sym in Language.TokenizeString(start, content))
             {
                 span.Accept(sym);
             }
@@ -305,6 +305,11 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
         {
             if (symbol != null)
             {
+                foreach (var error in symbol.Errors)
+                {
+                    Context.ErrorSink.OnError(error);
+                }
+
                 Span.Accept(symbol);
             }
         }

@@ -52,7 +52,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
             // of the original list.
             _symbols = null;
 
-            EditHandler = SpanEditHandler.CreateDefault((content, errorSink) => Enumerable.Empty<ISymbol>());
+            EditHandler = SpanEditHandler.CreateDefault((content) => Enumerable.Empty<ISymbol>());
             ChunkGenerator = SpanChunkGenerator.Null;
             Start = SourceLocation.Zero;
         }

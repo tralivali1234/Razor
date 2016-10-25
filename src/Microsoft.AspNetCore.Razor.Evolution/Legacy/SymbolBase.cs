@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using Microsoft.Extensions.Internal;
 
@@ -9,7 +10,11 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
 {
     public abstract class SymbolBase<TType> : ISymbol where TType : struct
     {
-        protected SymbolBase(SourceLocation start, string content, TType type)
+        protected SymbolBase(
+            SourceLocation start,
+            string content,
+            TType type,
+            IReadOnlyList<RazorError> errors)
         {
             if (content == null)
             {
@@ -19,9 +24,12 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
             Start = start;
             Content = content;
             Type = type;
+            Errors = errors;
         }
 
         public SourceLocation Start { get; private set; }
+
+        public IReadOnlyList<RazorError> Errors { get; }
 
         public string Content { get; }
 

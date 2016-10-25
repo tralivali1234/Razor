@@ -13,9 +13,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
         where TSymbolType : struct
         where TSymbol : SymbolBase<TSymbolType>
     {
-        private readonly ErrorSink _errorSink;
-
-        protected Tokenizer(ITextDocument source, ErrorSink errorSink)
+        protected Tokenizer(ITextDocument source)
         {
             if (source == null)
             {
@@ -25,7 +23,6 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
             Source = source;
             Buffer = new StringBuilder();
             CurrentErrors = new List<RazorError>();
-            _errorSink = errorSink;
             StartSymbol();
         }
 
@@ -71,7 +68,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
 
         protected SourceLocation CurrentStart { get; private set; }
 
-        protected abstract TSymbol CreateSymbol(SourceLocation start, string content, TSymbolType type);
+        protected abstract TSymbol CreateSymbol(SourceLocation start, string content, TSymbolType type, IReadOnlyList<RazorError> errors);
 
         protected abstract StateResult Dispatch();
 
@@ -212,12 +209,14 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
             TSymbol sym = null;
             if (HaveContent)
             {
+                // Perf: Don't allocate a new errors array unless necessary.
+                var errors = CurrentErrors.Count == 0 ? RazorError.EmptyArray : new RazorError[CurrentErrors.Count];
                 for (var i = 0; i < CurrentErrors.Count; i++)
                 {
-                    _errorSink.OnError(CurrentErrors[i]);
+                    errors[i] = CurrentErrors[i];
                 }
 
-                sym = CreateSymbol(start, Buffer.ToString(), type);
+                sym = CreateSymbol(start, Buffer.ToString(), type, errors);
             }
             StartSymbol();
             return sym;

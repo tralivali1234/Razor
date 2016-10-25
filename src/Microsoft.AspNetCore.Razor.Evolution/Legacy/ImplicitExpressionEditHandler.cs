@@ -16,7 +16,7 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
         private readonly ISet<string> _keywords;
         private readonly IReadOnlyCollection<string> _readOnlyKeywords;
 
-        public ImplicitExpressionEditHandler(Func<string, ErrorSink, IEnumerable<ISymbol>> tokenizer, ISet<string> keywords, bool acceptTrailingDot)
+        public ImplicitExpressionEditHandler(Func<string, IEnumerable<ISymbol>> tokenizer, ISet<string> keywords, bool acceptTrailingDot)
             : base(tokenizer)
         {
             _keywords = keywords ?? new HashSet<string>();

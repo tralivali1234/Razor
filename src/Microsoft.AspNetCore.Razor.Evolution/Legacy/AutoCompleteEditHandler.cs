@@ -11,18 +11,18 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
     {
         private static readonly int TypeHashCode = typeof(AutoCompleteEditHandler).GetHashCode();
 
-        public AutoCompleteEditHandler(Func<string, ErrorSink, IEnumerable<ISymbol>> tokenizer)
+        public AutoCompleteEditHandler(Func<string, IEnumerable<ISymbol>> tokenizer)
             : base(tokenizer)
         {
         }
 
-        public AutoCompleteEditHandler(Func<string, ErrorSink, IEnumerable<ISymbol>> tokenizer, bool autoCompleteAtEndOfSpan)
+        public AutoCompleteEditHandler(Func<string, IEnumerable<ISymbol>> tokenizer, bool autoCompleteAtEndOfSpan)
             : this(tokenizer)
         {
             AutoCompleteAtEndOfSpan = autoCompleteAtEndOfSpan;
         }
 
-        public AutoCompleteEditHandler(Func<string, ErrorSink, IEnumerable<ISymbol>> tokenizer, AcceptedCharacters accepted)
+        public AutoCompleteEditHandler(Func<string, IEnumerable<ISymbol>> tokenizer, AcceptedCharacters accepted)
             : base(tokenizer, accepted)
         {
         }

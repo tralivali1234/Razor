@@ -69,14 +69,14 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
 
         public static CSharpLanguageCharacteristics Instance => _instance;
 
-        public override CSharpTokenizer CreateTokenizer(ITextDocument source, ErrorSink errorSink)
+        public override CSharpTokenizer CreateTokenizer(ITextDocument source)
         {
-            return new CSharpTokenizer(source, errorSink);
+            return new CSharpTokenizer(source);
         }
 
-        protected override CSharpSymbol CreateSymbol(SourceLocation location, string content, CSharpSymbolType type)
+        protected override CSharpSymbol CreateSymbol(SourceLocation location, string content, CSharpSymbolType type, IReadOnlyList<RazorError> errors)
         {
-            return new CSharpSymbol(location, content, type);
+            return new CSharpSymbol(location, content, type, errors);
         }
 
         public override string GetSample(CSharpSymbolType type)

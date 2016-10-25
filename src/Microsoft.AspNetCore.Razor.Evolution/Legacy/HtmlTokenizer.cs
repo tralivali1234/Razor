@@ -1,6 +1,7 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
@@ -10,8 +11,8 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
     {
         private const char TransitionChar = '@';
 
-        public HtmlTokenizer(ITextDocument source, ErrorSink errorSink)
-            : base(source, errorSink)
+        public HtmlTokenizer(ITextDocument source)
+            : base(source)
         {
             base.CurrentState = StartState;
         }
@@ -35,9 +36,9 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
             get { return HtmlSymbolType.RazorCommentStar; }
         }
 
-        protected override HtmlSymbol CreateSymbol(SourceLocation start, string content, HtmlSymbolType type)
+        protected override HtmlSymbol CreateSymbol(SourceLocation start, string content, HtmlSymbolType type, IReadOnlyList<RazorError> errors)
         {
-            return new HtmlSymbol(start, content, type);
+            return new HtmlSymbol(start, content, type, errors);
         }
 
         protected override StateResult Dispatch()

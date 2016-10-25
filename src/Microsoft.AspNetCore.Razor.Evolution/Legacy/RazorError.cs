@@ -9,6 +9,8 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
 {
     public class RazorError : IEquatable<RazorError>
     {
+        internal static readonly RazorError[] EmptyArray = new RazorError[0];
+
         /// <summary>
         /// Used only for deserialization.
         /// </summary>

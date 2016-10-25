@@ -1,6 +1,7 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
@@ -65,9 +66,9 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
             }
         }
 
-        public override HtmlTokenizer CreateTokenizer(ITextDocument source, ErrorSink errorSink)
+        public override HtmlTokenizer CreateTokenizer(ITextDocument source)
         {
-            return new HtmlTokenizer(source, errorSink);
+            return new HtmlTokenizer(source);
         }
 
         public override HtmlSymbolType FlipBracket(HtmlSymbolType bracket)
@@ -124,9 +125,9 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
             }
         }
 
-        protected override HtmlSymbol CreateSymbol(SourceLocation location, string content, HtmlSymbolType type)
+        protected override HtmlSymbol CreateSymbol(SourceLocation location, string content, HtmlSymbolType type, IReadOnlyList<RazorError> errors)
         {
-            return new HtmlSymbol(location, content, type);
+            return new HtmlSymbol(location, content, type, errors);
         }
     }
 }
