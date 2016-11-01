@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace Microsoft.AspNetCore.Razor.Evolution.Intermediate
 {
@@ -35,6 +36,18 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Intermediate
             Pop();
         }
 
+        public override DocumentIR Build()
+        {
+            RazorIRNode node = null;
+            while (_depth > 0)
+            {
+                node = Pop();
+            }
+
+            Debug.Assert(node is DocumentIR);
+            return (DocumentIR)node;
+        }
+        
         public override RazorIRNode Pop()
         {
             if (_depth == 0)

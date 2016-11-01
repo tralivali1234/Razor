@@ -8,13 +8,15 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Intermediate
         public static RazorIRBuilder Document()
         {
             var builder = new DefaultRazorIRBuilder();
-            builder.Push(new RazorIRDocument());
+            builder.Push(new DocumentIR());
             return builder;
         }
 
         public abstract RazorIRNode Current { get; }
 
         public abstract void Add(RazorIRNode node);
+
+        public abstract DocumentIR Build();
 
         public abstract void Push(RazorIRNode node);
 
