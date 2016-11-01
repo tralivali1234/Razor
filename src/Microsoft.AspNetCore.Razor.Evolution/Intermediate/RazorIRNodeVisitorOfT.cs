@@ -19,5 +19,15 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Intermediate
         {
             return VisitDefault(node);
         }
+
+        public virtual TResult VisitMarkup(IRMarkup node)
+        {
+            return VisitDefault(node);
+        }
+
+        public virtual TResult VisitTemplate(IRTemplate node)
+        {
+            return VisitDefault(node);
+        }
     }
 }

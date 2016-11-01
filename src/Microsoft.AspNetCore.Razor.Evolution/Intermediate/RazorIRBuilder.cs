@@ -16,6 +16,8 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Intermediate
 
         public abstract void Add(RazorIRNode node);
 
+        public abstract RazorIRDocument Build();
+
         public abstract void Push(RazorIRNode node);
 
         public abstract RazorIRNode Pop();

@@ -125,6 +125,26 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Intermediate
             Assert.Collection(parent.Children, n => Assert.Same(node, n));
         }
 
+        [Fact]
+        public void Build_PopsMultipleLevels()
+        {
+            // Arrange
+            var builder = new DefaultRazorIRBuilder();
+
+            var document = new RazorIRDocument();
+            builder.Push(document);
+
+            var node = new BasicIRNode();
+            builder.Push(node);
+
+            // Act
+            var result = builder.Build();
+
+            // Assert
+            Assert.Same(document, result);
+            Assert.Null(builder.Current);
+        }
+
         private class BasicIRNode : RazorIRNode
         {
             public override IList<RazorIRNode> Children { get; } = new List<RazorIRNode>();
