@@ -10,14 +10,14 @@ namespace Microsoft.AspNetCore.Razor.Evolution.Legacy
         [Fact]
         public void CtorInitializesProperties()
         {
-            var buffer = new LineTrackingStringBuffer(string.Empty);
+            var buffer = new LineTrackingStringBuffer(new char[0]);
             Assert.Equal(0, buffer.Length);
         }
 
         [Fact]
         public void CharAtCorrectlyReturnsLocation()
         {
-            var buffer = new LineTrackingStringBuffer("foo\rbar\nbaz\r\nbiz");
+            var buffer = new LineTrackingStringBuffer("foo\rbar\nbaz\r\nbiz".ToCharArray());
             LineTrackingStringBuffer.CharacterReference chr = buffer.CharAt(14);
             Assert.Equal('i', chr.Character);
             Assert.Equal(new SourceLocation(14, 3, 1), chr.Location);

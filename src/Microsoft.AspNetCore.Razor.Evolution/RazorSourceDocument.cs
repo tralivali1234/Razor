@@ -42,8 +42,14 @@ namespace Microsoft.AspNetCore.Razor.Evolution
             return new DefaultRazorSourceDocument(memoryStream, encoding, filename);
         }
 
+        public abstract Encoding Encoding { get; }
+
         public abstract string Filename { get; }
 
-        public abstract TextReader CreateReader();
+        public abstract char this[int position] { get; }
+
+        public abstract int Length { get; }
+
+        public abstract void CopyTo(int sourceIndex, char[] destination, int destinationIndex, int count);
     }
 }
