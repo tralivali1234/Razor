@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.AspNetCore.Razor.Parser.Internal;
 using Microsoft.AspNetCore.Razor.Parser.SyntaxTree;
 
 namespace Microsoft.AspNetCore.Razor.Parser
@@ -29,21 +28,21 @@ namespace Microsoft.AspNetCore.Razor.Parser
         {
             var newBlock = new BlockBuilder(block);
             newBlock.Children.Clear();
-            var ws = block.Children.FirstOrDefault() as Span;
+            var whitespace = block.Children.FirstOrDefault() as Span;
             IEnumerable<SyntaxTreeNode> newNodes = block.Children;
-            if (ws.Content.All(Char.IsWhiteSpace))
+            if (whitespace.Content.All(char.IsWhiteSpace))
             {
                 // Add this node to the parent
-                var builder = new SpanBuilder(ws);
+                var builder = new SpanBuilder(whitespace);
                 builder.ClearSymbols();
-                FillSpan(builder, ws.Start, ws.Content);
+                FillSpan(builder, whitespace.Start, whitespace.Content);
                 parent.Children.Add(builder.Build());
 
                 // Remove the old whitespace node
                 newNodes = block.Children.Skip(1);
             }
 
-            foreach (SyntaxTreeNode node in newNodes)
+            foreach (var node in newNodes)
             {
                 newBlock.Children.Add(node);
             }
