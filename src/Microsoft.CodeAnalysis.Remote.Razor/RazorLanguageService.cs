@@ -8,19 +8,28 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Razor.Evolution;
+using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.CodeAnalysis.Razor;
+using Microsoft.VisualStudio.LanguageServices.Razor;
 
 namespace Microsoft.CodeAnalysis.Remote.Razor
 {
     internal class RazorLanguageService : ServiceHubServiceBase
     {
+        [Obsolete("This will be removed as part of #976. ServiceHub still calls this constructor. Remove once ServiceHub can use the other one.")]
         public RazorLanguageService(Stream stream, IServiceProvider serviceProvider)
             : base(stream, serviceProvider)
         {
+            Rpc.JsonSerializer.Converters.Add(new RazorDiagnosticJsonConverter());
         }
 
-        public async Task<IEnumerable<TagHelperDescriptor>> GetTagHelpersAsync(Guid projectIdBytes, string projectDebugName, CancellationToken cancellationToken = default(CancellationToken))
+        public RazorLanguageService(IServiceProvider serviceProvider, Stream stream)
+            : base(serviceProvider, stream)
+        {
+            Rpc.JsonSerializer.Converters.Add(new RazorDiagnosticJsonConverter());
+        }
+
+        public async Task<TagHelperResolutionResult> GetTagHelpersAsync(Guid projectIdBytes, string projectDebugName, IEnumerable<string> assemblyNameFilters, CancellationToken cancellationToken = default(CancellationToken))
         {
             var projectId = ProjectId.CreateFromSerialized(projectIdBytes, projectDebugName);
 
@@ -28,9 +37,9 @@ namespace Microsoft.CodeAnalysis.Remote.Razor
             var project = solution.GetProject(projectId);
 
             var resolver = new DefaultTagHelperResolver(designTime: true);
-            var results = await resolver.GetTagHelpersAsync(project, cancellationToken).ConfigureAwait(false);
+            var result = await resolver.GetTagHelpersAsync(project, assemblyNameFilters, cancellationToken).ConfigureAwait(false);
 
-            return results;
+            return result;
         }
 
         public Task<IEnumerable<DirectiveDescriptor>> GetDirectivesAsync(Guid projectIdBytes, string projectDebugName, CancellationToken cancellationToken = default(CancellationToken))

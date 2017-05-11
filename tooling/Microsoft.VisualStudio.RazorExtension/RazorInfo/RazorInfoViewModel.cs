@@ -1,6 +1,7 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+#if RAZOR_EXTENSION_DEVELOPER_MODE
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -14,6 +15,7 @@ using Microsoft.VisualStudio.LanguageServices.Razor;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.TextManager.Interop;
+using System.IO;
 
 namespace Microsoft.VisualStudio.RazorExtension.RazorInfo
 {
@@ -25,6 +27,7 @@ namespace Microsoft.VisualStudio.RazorExtension.RazorInfo
         private readonly ITagHelperResolver _tagHelperResolver;
         private readonly IServiceProvider _services;
         private readonly Workspace _workspace;
+        private readonly Action<Exception> _errorHandler;
 
         private DocumentViewModel _currentDocument;
         private DocumentInfoViewModel _currentDocumentInfo;
@@ -40,7 +43,8 @@ namespace Microsoft.VisualStudio.RazorExtension.RazorInfo
             IRazorEngineAssemblyResolver assemblyResolver,
             IRazorEngineDirectiveResolver directiveResolver,
             ITagHelperResolver tagHelperResolver,
-            IRazorEngineDocumentGenerator documentGenerator)
+            IRazorEngineDocumentGenerator documentGenerator,
+            Action<Exception> errorHandler)
         {
             _services = services;
             _workspace = workspace;
@@ -48,6 +52,7 @@ namespace Microsoft.VisualStudio.RazorExtension.RazorInfo
             _directiveResolver = directiveResolver;
             _tagHelperResolver = tagHelperResolver;
             _documentGenerator = documentGenerator;
+            _errorHandler = errorHandler;
 
             GenerateCommand = new RelayCommand<object>(ExecuteGenerate, CanExecuteGenerate);
             LoadCommand = new RelayCommand<object>(ExecuteLoad, CanExecuteLoad);
@@ -166,7 +171,14 @@ namespace Microsoft.VisualStudio.RazorExtension.RazorInfo
                 var assemblies = await _assemblyResolver.GetRazorEngineAssembliesAsync(project);
 
                 var directives = await _directiveResolver.GetRazorEngineDirectivesAsync(_workspace, project);
-                var tagHelpers = await _tagHelperResolver.GetTagHelpersAsync(project);
+                var assemblyFilters = project.MetadataReferences
+                    .Select(reference => reference.Display)
+                    .Select(filter => Path.GetFileNameWithoutExtension(filter));
+                var projectFilters = project.AllProjectReferences.Select(filter => solution.GetProject(filter.ProjectId).AssemblyName);
+                var tagHelperAssemblyFilters = assemblyFilters
+                    .Concat(projectFilters)
+                    .Concat(new[] { project.AssemblyName });
+                var resolutionResult = await _tagHelperResolver.GetTagHelpersAsync(project, tagHelperAssemblyFilters);
 
                 var files = GetCshtmlDocuments(project);
 
@@ -175,12 +187,12 @@ namespace Microsoft.VisualStudio.RazorExtension.RazorInfo
                     Assemblies = new ObservableCollection<AssemblyViewModel>(assemblies.Select(a => new AssemblyViewModel(a))),
                     Directives = new ObservableCollection<DirectiveViewModel>(directives.Select(d => new DirectiveViewModel(d))),
                     Documents = new ObservableCollection<DocumentViewModel>(documents.Select(d => new DocumentViewModel(d))),
-                    TagHelpers = new ObservableCollection<TagHelperViewModel>(tagHelpers.Select(t => new TagHelperViewModel(t))),
+                    TagHelpers = new ObservableCollection<TagHelperViewModel>(resolutionResult.Descriptors.Select(t => new TagHelperViewModel(t))),
                 };
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex);
+                _errorHandler.Invoke(ex);
             }
 
             IsLoading = false;
@@ -309,3 +321,4 @@ namespace Microsoft.VisualStudio.RazorExtension.RazorInfo
         }
     }
 }
+#endif

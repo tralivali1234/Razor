@@ -1,6 +1,7 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+#if RAZOR_EXTENSION_DEVELOPER_MODE
 using System;
 using System.Collections.Generic;
 using System.Composition;
@@ -15,15 +16,20 @@ namespace Microsoft.VisualStudio.LanguageServices.Razor
     {
         public async Task<IEnumerable<RazorEngineAssembly>> GetRazorEngineAssembliesAsync(Project project)
         {
-            var compilation = await project.GetCompilationAsync().ConfigureAwait(false);
-            var assemblies = GetRazorCustomizationAssemblies(compilation);
-
-            if (assemblies.Count == 0)
+            try
             {
-                Console.WriteLine();
-            }
+                var compilation = await project.GetCompilationAsync().ConfigureAwait(false);
+                var assemblies = GetRazorCustomizationAssemblies(compilation);
 
-            return assemblies;
+                return assemblies;
+            }
+            catch (Exception exception)
+            {
+                throw new RazorLanguageServiceException(
+                    typeof(DefaultRazorEngineAssemblyResolver).FullName,
+                    nameof(GetRazorEngineAssembliesAsync),
+                    exception);
+            }
         }
 
         private static List<RazorEngineAssembly> GetRazorCustomizationAssemblies(Compilation compilation)
@@ -144,3 +150,4 @@ namespace Microsoft.VisualStudio.LanguageServices.Razor
         }
     }
 }
+#endif

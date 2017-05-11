@@ -1,7 +1,9 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using Microsoft.AspNetCore.Razor.Evolution;
+#if RAZOR_EXTENSION_DEVELOPER_MODE
+using System.Linq;
+using Microsoft.AspNetCore.Razor.Language;
 
 namespace Microsoft.VisualStudio.RazorExtension.RazorInfo
 {
@@ -16,8 +18,9 @@ namespace Microsoft.VisualStudio.RazorExtension.RazorInfo
 
         public string AssemblyName => _descriptor.AssemblyName;
 
-        public string TargetElement => _descriptor.TagName;
+        public string TargetElement => string.Join(", ", _descriptor.TagMatchingRules.Select(rule => rule.TagName));
 
-        public string TypeName => _descriptor.TypeName;
+        public string TypeName => _descriptor.Metadata[TagHelperDescriptorBuilder.TypeNameKey];
     }
 }
+#endif

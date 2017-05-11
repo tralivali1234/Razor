@@ -1,13 +1,15 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+#if RAZOR_EXTENSION_DEVELOPER_MODE
 using System;
 using System.Runtime.InteropServices;
-using Microsoft.VisualStudio.Shell;
+using Microsoft.CodeAnalysis;
 using Microsoft.VisualStudio.ComponentModelHost;
 using Microsoft.VisualStudio.LanguageServices;
 using Microsoft.VisualStudio.LanguageServices.Razor;
-using Microsoft.CodeAnalysis;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Shell.Interop;
 
 namespace Microsoft.VisualStudio.RazorExtension.RazorInfo
 {
@@ -39,6 +41,8 @@ namespace Microsoft.VisualStudio.RazorExtension.RazorInfo
 
             _workspace = componentModel.GetService<VisualStudioWorkspace>();
             _workspace.WorkspaceChanged += Workspace_WorkspaceChanged;
+
+            Reset(_workspace.CurrentSolution);
         }
 
         protected override void Dispose(bool disposing)
@@ -59,13 +63,27 @@ namespace Microsoft.VisualStudio.RazorExtension.RazorInfo
                 return;
             }
 
-            var viewModel = new RazorInfoViewModel(this, _workspace, _assemblyResolver, _directiveResolver, _tagHelperResolver, _documentGenerator);
+            var viewModel = new RazorInfoViewModel(this, _workspace, _assemblyResolver, _directiveResolver, _tagHelperResolver, _documentGenerator, OnException);
             foreach (var project in solution.Projects)
             {
-                viewModel.Projects.Add(new ProjectViewModel(project));
+                if (project.Language == LanguageNames.CSharp)
+                {
+                    viewModel.Projects.Add(new ProjectViewModel(project));
+                }
             }
 
             ((RazorInfoToolWindowControl)this.Content).DataContext = viewModel;
+        }
+
+        private void OnException(Exception ex)
+        {
+            VsShellUtilities.ShowMessageBox(
+                this,
+                ex.ToString(),
+                "Razor Error",
+                OLEMSGICON.OLEMSGICON_CRITICAL,
+                OLEMSGBUTTON.OLEMSGBUTTON_OK,
+                OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
         }
 
         private void Workspace_WorkspaceChanged(object sender, WorkspaceChangeEventArgs e)
@@ -87,3 +105,4 @@ namespace Microsoft.VisualStudio.RazorExtension.RazorInfo
         }
     }
 }
+#endif
