@@ -109,6 +109,52 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             return symbols[count];
         }
 
+        /// <summary>
+        /// Looks forward until the specified condition is met.
+        /// </summary>
+        /// <param name="condition">A predicate accepting the symbol being evaluated and the list of symbols which have been looped through.</param>
+        /// <returns>true, if the condition was met. false - if the condition wasn't met and the last symbol has already been processed.</returns>
+        /// <remarks>The list of previous symbols is passed in the reverse order. So the last processed element will be the first one in the list.</remarks>
+        protected bool LookaheadUntil(Func<TSymbol, IEnumerable<TSymbol>, bool> condition)
+        {
+            if (condition == null)
+            {
+                throw new ArgumentNullException(nameof(condition));
+            }
+
+            var matchFound = false;
+
+            var symbols = new List<TSymbol>();
+            symbols.Add(CurrentSymbol);
+
+            while (true)
+            {
+                if (!NextToken())
+                {
+                    break;
+                }
+
+                symbols.Add(CurrentSymbol);
+                if (condition(CurrentSymbol, symbols))
+                {
+                    matchFound = true;
+                    break;
+                }
+            }
+
+            // Restore Tokenizer's location to where it was pointing before the look-ahead.
+            for (var i = symbols.Count - 1; i >= 0; i--)
+            {
+                PutBack(symbols[i]);
+            }
+
+            // The PutBacks above will set CurrentSymbol to null. EnsureCurrent will set our CurrentSymbol to the
+            // next symbol.
+            EnsureCurrent();
+
+            return matchFound;
+        }
+
         protected internal bool NextToken()
         {
             PreviousSymbol = CurrentSymbol;
@@ -168,11 +214,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             if (EndOfFile && ((mode & BalancingModes.NoErrorOnFailure) != BalancingModes.NoErrorOnFailure))
             {
                 Context.ErrorSink.OnError(
-                    start,
-                    LegacyResources.FormatParseError_Expected_CloseBracket_Before_EOF(
+                    RazorDiagnosticFactory.CreateParsing_ExpectedCloseBracketBeforeEOF(
+                        new SourceSpan(start, contentLength: 1 /* { OR } */),
                         Language.GetSample(left),
-                        Language.GetSample(right)),
-                    length: 1 /* { OR } */);
+                        Language.GetSample(right)));
             }
 
             return Balance(mode, left, right, start);
@@ -218,11 +263,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                     if ((mode & BalancingModes.NoErrorOnFailure) != BalancingModes.NoErrorOnFailure)
                     {
                         Context.ErrorSink.OnError(
-                            start,
-                            LegacyResources.FormatParseError_Expected_CloseBracket_Before_EOF(
+                            RazorDiagnosticFactory.CreateParsing_ExpectedCloseBracketBeforeEOF(
+                                new SourceSpan(start, contentLength: 1 /* { OR } */),
                                 Language.GetSample(left),
-                                Language.GetSample(right)),
-                            length: 1 /* { OR } */);
+                                Language.GetSample(right)));
                     }
                     if ((mode & BalancingModes.BacktrackOnFailure) == BalancingModes.BacktrackOnFailure)
                     {
@@ -256,12 +300,21 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         protected internal bool NextIs(Func<TSymbol, bool> condition)
         {
             var cur = CurrentSymbol;
-            NextToken();
-            var result = condition(CurrentSymbol);
-            PutCurrentBack();
-            PutBack(cur);
-            EnsureCurrent();
-            return result;
+            if (NextToken())
+            {
+                var result = condition(CurrentSymbol);
+                PutCurrentBack();
+                PutBack(cur);
+                EnsureCurrent();
+                return result;
+            }
+            else
+            {
+                PutBack(cur);
+                EnsureCurrent();
+            }
+
+            return false;
         }
 
         protected internal bool Was(TSymbolType type)
@@ -286,7 +339,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             {
                 Tuple<TSymbol, TSymbol> pair = Language.SplitSymbol(CurrentSymbol, 1, Language.GetKnownSymbolType(KnownSymbolType.WhiteSpace));
                 Accept(pair.Item1);
-                Span.EditHandler.AcceptedCharacters = AcceptedCharacters.None;
+                Span.EditHandler.AcceptedCharacters = AcceptedCharactersInternal.None;
                 NextToken();
                 return pair.Item2;
             }
@@ -329,25 +382,25 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
 
         protected internal void AddMarkerSymbolIfNecessary()
         {
-            if (Span.Symbols.Count == 0 && Context.Builder.LastAcceptedCharacters != AcceptedCharacters.Any)
+            if (Span.Symbols.Count == 0 && Context.Builder.LastAcceptedCharacters != AcceptedCharactersInternal.Any)
             {
                 Accept(Language.CreateMarkerSymbol());
             }
         }
 
-        protected internal void Output(SpanKind kind)
+        protected internal void Output(SpanKindInternal kind)
         {
             Configure(kind, null);
             Output();
         }
 
-        protected internal void Output(SpanKind kind, AcceptedCharacters accepts)
+        protected internal void Output(SpanKindInternal kind, AcceptedCharactersInternal accepts)
         {
             Configure(kind, accepts);
             Output();
         }
 
-        protected internal void Output(AcceptedCharacters accepts)
+        protected internal void Output(AcceptedCharactersInternal accepts)
         {
             Configure(null, accepts);
             Output();
@@ -433,44 +486,6 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 return true;
             }
             return false;
-        }
-
-        protected internal bool Required(TSymbolType expected, bool errorIfNotFound, Func<string, string> errorBase)
-        {
-            var found = At(expected);
-            if (!found && errorIfNotFound)
-            {
-                string error;
-                if (Language.IsNewLine(CurrentSymbol))
-                {
-                    error = LegacyResources.ErrorComponent_Newline;
-                }
-                else if (Language.IsWhiteSpace(CurrentSymbol))
-                {
-                    error = LegacyResources.ErrorComponent_Whitespace;
-                }
-                else if (EndOfFile)
-                {
-                    error = LegacyResources.ErrorComponent_EndOfFile;
-                }
-                else
-                {
-                    error = LegacyResources.FormatErrorComponent_Character(CurrentSymbol.Content);
-                }
-
-                int errorLength;
-                if (CurrentSymbol == null || CurrentSymbol.Content == null)
-                {
-                    errorLength = 1;
-                }
-                else
-                {
-                    errorLength = Math.Max(CurrentSymbol.Content.Length, 1);
-                }
-
-                Context.ErrorSink.OnError(CurrentStart, errorBase(error), errorLength);
-            }
-            return found;
         }
 
         protected bool EnsureCurrent()
@@ -580,7 +595,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             }
         }
 
-        private void Configure(SpanKind? kind, AcceptedCharacters? accepts)
+        private void Configure(SpanKindInternal? kind, AcceptedCharactersInternal? accepts)
         {
             if (kind != null)
             {
@@ -594,7 +609,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
 
         protected virtual void OutputSpanBeforeRazorComment()
         {
-            throw new InvalidOperationException(LegacyResources.Language_Does_Not_Support_RazorComment);
+            throw new InvalidOperationException(Resources.Language_Does_Not_Support_RazorComment);
         }
 
         private void CommentSpanConfig(SpanBuilder span)
@@ -609,38 +624,37 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 !Language.KnowsSymbolType(KnownSymbolType.CommentStar) ||
                 !Language.KnowsSymbolType(KnownSymbolType.CommentBody))
             {
-                throw new InvalidOperationException(LegacyResources.Language_Does_Not_Support_RazorComment);
+                throw new InvalidOperationException(Resources.Language_Does_Not_Support_RazorComment);
             }
             OutputSpanBeforeRazorComment();
             using (PushSpanConfig(CommentSpanConfig))
             {
-                using (Context.Builder.StartBlock(BlockKind.Comment))
+                using (Context.Builder.StartBlock(BlockKindInternal.Comment))
                 {
                     Context.Builder.CurrentBlock.ChunkGenerator = new RazorCommentChunkGenerator();
                     var start = CurrentStart;
 
                     Expected(KnownSymbolType.CommentStart);
-                    Output(SpanKind.Transition, AcceptedCharacters.None);
+                    Output(SpanKindInternal.Transition, AcceptedCharactersInternal.None);
 
                     Expected(KnownSymbolType.CommentStar);
-                    Output(SpanKind.MetaCode, AcceptedCharacters.None);
+                    Output(SpanKindInternal.MetaCode, AcceptedCharactersInternal.None);
 
                     Optional(KnownSymbolType.CommentBody);
                     AddMarkerSymbolIfNecessary();
-                    Output(SpanKind.Comment);
+                    Output(SpanKindInternal.Comment);
 
                     var errorReported = false;
                     if (!Optional(KnownSymbolType.CommentStar))
                     {
                         errorReported = true;
                         Context.ErrorSink.OnError(
-                            start,
-                            LegacyResources.ParseError_RazorComment_Not_Terminated,
-                            length: 2 /* @* */);
+                            RazorDiagnosticFactory.CreateParsing_RazorCommentNotTerminated(
+                                new SourceSpan(start, contentLength: 2 /* @* */)));
                     }
                     else
                     {
-                        Output(SpanKind.MetaCode, AcceptedCharacters.None);
+                        Output(SpanKindInternal.MetaCode, AcceptedCharactersInternal.None);
                     }
 
                     if (!Optional(KnownSymbolType.CommentStart))
@@ -649,14 +663,13 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                         {
                             errorReported = true;
                             Context.ErrorSink.OnError(
-                                start,
-                                LegacyResources.ParseError_RazorComment_Not_Terminated,
-                                length: 2 /* @* */);
+                            RazorDiagnosticFactory.CreateParsing_RazorCommentNotTerminated(
+                                new SourceSpan(start, contentLength: 2 /* @* */)));
                         }
                     }
                     else
                     {
-                        Output(SpanKind.Transition, AcceptedCharacters.None);
+                        Output(SpanKindInternal.Transition, AcceptedCharactersInternal.None);
                     }
                 }
             }

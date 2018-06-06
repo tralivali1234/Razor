@@ -1,12 +1,10 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
+using System.Linq;
 using Microsoft.AspNetCore.Razor.Language;
+using Microsoft.AspNetCore.Razor.Language.Extensions;
 using Microsoft.AspNetCore.Razor.Language.Intermediate;
-using Microsoft.AspNetCore.Razor.Language.Legacy;
 using Xunit;
 
 namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
@@ -24,32 +22,31 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
             var tagHelpers = new[]
             {
                 TagHelperDescriptorBuilder.Create("TestTagHelper", "TestAssembly")
-                    .BindAttribute(attribute =>
-                        attribute
-                            .Name("Foo")
-                            .TypeName("System.Int32"))
-                    .TagMatchingRule(rule =>
-                        rule.RequireTagName("p"))
+                    .TypeName("TestTagHelper")
+                    .BoundAttributeDescriptor(attribute => attribute
+                        .Name("Foo")
+                        .TypeName("System.Int32"))
+                    .TagMatchingRuleDescriptor(rule => rule.RequireTagName("p"))
                     .Build()
             };
 
-            var engine = CreateEngine(tagHelpers);
+            var projectEngine = CreateProjectEngine(tagHelpers);
             var pass = new ViewComponentTagHelperPass()
             {
-                Engine = engine,
+                Engine = projectEngine.Engine,
             };
 
-            var irDocument = CreateIRDocument(engine, codeDocument);
+            var irDocument = CreateIRDocument(projectEngine, codeDocument);
 
             // Act
             pass.Execute(codeDocument, irDocument);
 
             // Assert
             var @class = FindClassNode(irDocument);
-            Assert.Equal(2, @class.Children.Count); // No class node created for a VCTH
+            Assert.Equal(3, @class.Children.Count); // No class node created for a VCTH
             for (var i = 0; i < @class.Children.Count; i++)
             {
-                Assert.IsNotType<CSharpStatementIRNode>(@class.Children[i]);
+                Assert.IsNotType<ViewComponentTagHelperIntermediateNode>(@class.Children[i]);
             }
         }
 
@@ -63,66 +60,40 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
 
             var tagHelpers = new[]
             {
-                TagHelperDescriptorBuilder.Create("TestTagHelper", "TestAssembly")
-                    .BindAttribute(attribute =>
-                        attribute
-                            .Name("Foo")
-                            .TypeName("System.Int32")
-                            .PropertyName("Foo"))
-                    .TagMatchingRule(rule =>
-                        rule.RequireTagName("tagcloud"))
-                    .AddMetadata(ViewComponentTagHelperDescriptorConventions.ViewComponentNameKey, "TagCloud")
+                TagHelperDescriptorBuilder.Create(ViewComponentTagHelperConventions.Kind, "TestTagHelper", "TestAssembly")
+                    .TypeName("__Generated__TagCloudViewComponentTagHelper")
+                    .BoundAttributeDescriptor(attribute => attribute
+                        .Name("Foo")
+                        .TypeName("System.Int32")
+                        .PropertyName("Foo"))
+                    .TagMatchingRuleDescriptor(rule => rule.RequireTagName("tagcloud"))
+                    .AddMetadata(ViewComponentTagHelperMetadata.Name, "TagCloud")
                     .Build()
             };
 
-            var engine = CreateEngine(tagHelpers);
+            var projectEngine = CreateProjectEngine(tagHelpers);
             var pass = new ViewComponentTagHelperPass()
             {
-                Engine = engine,
+                Engine = projectEngine.Engine,
             };
 
-            var irDocument = CreateIRDocument(engine, codeDocument);
+            var irDocument = CreateIRDocument(projectEngine, codeDocument);
 
-            var expectedVCTHName = "AspNetCore.test_cshtml.__Generated__TagCloudViewComponentTagHelper";
+            var vcthFullName = "AspNetCore.test.__Generated__TagCloudViewComponentTagHelper";
 
             // Act
             pass.Execute(codeDocument, irDocument);
 
             // Assert
             var tagHelper = FindTagHelperNode(irDocument);
-            Assert.Equal(expectedVCTHName, Assert.IsType<CreateTagHelperIRNode>(tagHelper.Children[1]).TagHelperTypeName);
-            Assert.Equal(expectedVCTHName, Assert.IsType<SetTagHelperPropertyIRNode>(tagHelper.Children[2]).TagHelperTypeName);
+            Assert.Equal(vcthFullName, Assert.IsType<DefaultTagHelperCreateIntermediateNode>(tagHelper.Children[1]).TypeName);
+            Assert.Equal("Foo", Assert.IsType<DefaultTagHelperPropertyIntermediateNode>(tagHelper.Children[2]).PropertyName);
 
 
             var @class = FindClassNode(irDocument);
-            Assert.Equal(3, @class.Children.Count);
+            Assert.Equal(4, @class.Children.Count);
 
-            var vcthClass = Assert.IsType<CSharpStatementIRNode>(@class.Children[2]);
-            var tokenNode = vcthClass.Children[0] as RazorIRToken;
-            Assert.Equal(
-                @"[Microsoft.AspNetCore.Razor.TagHelpers.HtmlTargetElementAttribute(""tagcloud"")]
-public class __Generated__TagCloudViewComponentTagHelper : Microsoft.AspNetCore.Razor.TagHelpers.TagHelper
-{
-    private readonly global::Microsoft.AspNetCore.Mvc.IViewComponentHelper _helper = null;
-    public __Generated__TagCloudViewComponentTagHelper(global::Microsoft.AspNetCore.Mvc.IViewComponentHelper helper)
-    {
-        _helper = helper;
-    }
-    [Microsoft.AspNetCore.Razor.TagHelpers.HtmlAttributeNotBoundAttribute, global::Microsoft.AspNetCore.Mvc.ViewFeatures.ViewContextAttribute]
-    public global::Microsoft.AspNetCore.Mvc.Rendering.ViewContext ViewContext { get; set; }
-    public System.Int32 Foo { get; set; }
-    public override async global::System.Threading.Tasks.Task ProcessAsync(Microsoft.AspNetCore.Razor.TagHelpers.TagHelperContext context, Microsoft.AspNetCore.Razor.TagHelpers.TagHelperOutput output)
-    {
-        (_helper as global::Microsoft.AspNetCore.Mvc.ViewFeatures.IViewContextAware)?.Contextualize(ViewContext);
-        var content = await _helper.InvokeAsync(""TagCloud"", new { Foo });
-        output.TagName = null;
-        output.Content.SetHtmlContent(content);
-    }
-}
-",
-                tokenNode.Content,
-                ignoreLineEndingDifferences: true);
-            Assert.Equal(tokenNode.Kind, RazorIRToken.TokenKind.CSharp);
+            Assert.IsType<ViewComponentTagHelperIntermediateNode>(@class.Children.Last());
         }
 
         [Fact]
@@ -135,67 +106,40 @@ public class __Generated__TagCloudViewComponentTagHelper : Microsoft.AspNetCore.
 
             var tagHelpers = new[]
             {
-                TagHelperDescriptorBuilder.Create("TestTagHelper", "TestAssembly")
-                    .BindAttribute(attribute =>
-                        attribute
-                            .Name("Foo")
-                            .TypeName("System.Collections.Generic.Dictionary<System.String, System.Int32>")
-                            .PropertyName("Tags")
-                            .AsDictionary("foo-", "System.Int32"))
-                    .TagMatchingRule(rule =>
-                        rule.RequireTagName("tagcloud"))
-                    .AddMetadata(ViewComponentTagHelperDescriptorConventions.ViewComponentNameKey, "TagCloud")
+                TagHelperDescriptorBuilder.Create(ViewComponentTagHelperConventions.Kind, "TestTagHelper", "TestAssembly")
+                    .TypeName("__Generated__TagCloudViewComponentTagHelper")
+                    .BoundAttributeDescriptor(attribute => attribute
+                        .Name("Foo")
+                        .TypeName("System.Collections.Generic.Dictionary<System.String, System.Int32>")
+                        .PropertyName("Tags")
+                        .AsDictionaryAttribute("foo-", "System.Int32"))
+                    .TagMatchingRuleDescriptor(rule => rule.RequireTagName("tagcloud"))
+                    .AddMetadata(ViewComponentTagHelperMetadata.Name, "TagCloud")
                     .Build()
             };
 
-            var engine = CreateEngine(tagHelpers);
+            var projectEngine = CreateProjectEngine(tagHelpers);
             var pass = new ViewComponentTagHelperPass()
             {
-                Engine = engine,
+                Engine = projectEngine.Engine,
             };
 
-            var irDocument = CreateIRDocument(engine, codeDocument);
+            var irDocument = CreateIRDocument(projectEngine, codeDocument);
 
-            var expectedVCTHName = "AspNetCore.test_cshtml.__Generated__TagCloudViewComponentTagHelper";
+            var vcthFullName = "AspNetCore.test.__Generated__TagCloudViewComponentTagHelper";
 
             // Act
             pass.Execute(codeDocument, irDocument);
 
             // Assert
             var tagHelper = FindTagHelperNode(irDocument);
-            Assert.Equal(expectedVCTHName, Assert.IsType<CreateTagHelperIRNode>(tagHelper.Children[1]).TagHelperTypeName);
-            Assert.IsType<AddTagHelperHtmlAttributeIRNode>(tagHelper.Children[2]);
+            Assert.Equal(vcthFullName, Assert.IsType<DefaultTagHelperCreateIntermediateNode>(tagHelper.Children[1]).TypeName);
+            Assert.IsType<DefaultTagHelperHtmlAttributeIntermediateNode>(tagHelper.Children[2]);
 
             var @class = FindClassNode(irDocument);
-            Assert.Equal(3, @class.Children.Count);
+            Assert.Equal(4, @class.Children.Count);
 
-            var vcthClass = Assert.IsType<CSharpStatementIRNode>(@class.Children[2]);
-            var tokenNode = vcthClass.Children[0] as RazorIRToken;
-            Assert.Equal(
-                @"[Microsoft.AspNetCore.Razor.TagHelpers.HtmlTargetElementAttribute(""tagcloud"")]
-public class __Generated__TagCloudViewComponentTagHelper : Microsoft.AspNetCore.Razor.TagHelpers.TagHelper
-{
-    private readonly global::Microsoft.AspNetCore.Mvc.IViewComponentHelper _helper = null;
-    public __Generated__TagCloudViewComponentTagHelper(global::Microsoft.AspNetCore.Mvc.IViewComponentHelper helper)
-    {
-        _helper = helper;
-    }
-    [Microsoft.AspNetCore.Razor.TagHelpers.HtmlAttributeNotBoundAttribute, global::Microsoft.AspNetCore.Mvc.ViewFeatures.ViewContextAttribute]
-    public global::Microsoft.AspNetCore.Mvc.Rendering.ViewContext ViewContext { get; set; }
-    public System.Collections.Generic.Dictionary<System.String, System.Int32> Tags { get; set; }
-     = new System.Collections.Generic.Dictionary<System.String, System.Int32>();
-    public override async global::System.Threading.Tasks.Task ProcessAsync(Microsoft.AspNetCore.Razor.TagHelpers.TagHelperContext context, Microsoft.AspNetCore.Razor.TagHelpers.TagHelperOutput output)
-    {
-        (_helper as global::Microsoft.AspNetCore.Mvc.ViewFeatures.IViewContextAware)?.Contextualize(ViewContext);
-        var content = await _helper.InvokeAsync(""TagCloud"", new { Tags });
-        output.TagName = null;
-        output.Content.SetHtmlContent(content);
-    }
-}
-",
-                tokenNode.Content,
-                ignoreLineEndingDifferences: true);
-            Assert.Equal(tokenNode.Kind, RazorIRToken.TokenKind.CSharp);
+            Assert.IsType<ViewComponentTagHelperIntermediateNode>(@class.Children[3]);
         }
 
         [Fact]
@@ -209,78 +153,51 @@ public class __Generated__TagCloudViewComponentTagHelper : Microsoft.AspNetCore.
             var tagHelpers = new[]
             {
                 TagHelperDescriptorBuilder.Create("PTestTagHelper", "TestAssembly")
-                    .BindAttribute(attribute =>
-                        attribute
-                            .Name("Foo")
-                            .TypeName("System.Int32"))
-                    .TagMatchingRule(rule =>
-                        rule.RequireTagName("p"))
+                    .TypeName("PTestTagHelper")
+                    .BoundAttributeDescriptor(attribute => attribute
+                        .PropertyName("Foo")
+                        .Name("Foo")
+                        .TypeName("System.Int32"))
+                    .TagMatchingRuleDescriptor(rule => rule.RequireTagName("p"))
                     .Build(),
-                TagHelperDescriptorBuilder.Create("TestTagHelper", "TestAssembly")
-                    .BindAttribute(attribute =>
-                        attribute
-                            .Name("Foo")
-                            .TypeName("System.Int32")
-                            .PropertyName("Foo"))
-                    .TagMatchingRule(rule =>
-                        rule.RequireTagName("tagcloud"))
-                    .AddMetadata(ViewComponentTagHelperDescriptorConventions.ViewComponentNameKey, "TagCloud")
+                TagHelperDescriptorBuilder.Create(ViewComponentTagHelperConventions.Kind, "TestTagHelper", "TestAssembly")
+                    .TypeName("__Generated__TagCloudViewComponentTagHelper")
+                    .BoundAttributeDescriptor(attribute => attribute
+                        .PropertyName("Foo")
+                        .Name("Foo")
+                        .TypeName("System.Int32"))
+                    .TagMatchingRuleDescriptor(rule => rule.RequireTagName("tagcloud"))
+                    .AddMetadata(ViewComponentTagHelperMetadata.Name, "TagCloud")
                     .Build()
             };
 
-            var engine = CreateEngine(tagHelpers);
+            var projectEngine = CreateProjectEngine(tagHelpers);
             var pass = new ViewComponentTagHelperPass()
             {
-                Engine = engine,
+                Engine = projectEngine.Engine,
             };
 
-            var irDocument = CreateIRDocument(engine, codeDocument);
-
-            var expectedTagHelperName = "PTestTagHelper";
-            var expectedVCTHName = "AspNetCore.test_cshtml.__Generated__TagCloudViewComponentTagHelper";
+            var irDocument = CreateIRDocument(projectEngine, codeDocument);
+            
+            var vcthFullName = "AspNetCore.test.__Generated__TagCloudViewComponentTagHelper";
 
             // Act
             pass.Execute(codeDocument, irDocument);
 
             // Assert
             var outerTagHelper = FindTagHelperNode(irDocument);
-            Assert.Equal(expectedTagHelperName, Assert.IsType<CreateTagHelperIRNode>(outerTagHelper.Children[1]).TagHelperTypeName);
-            Assert.Equal(expectedTagHelperName, Assert.IsType<SetTagHelperPropertyIRNode>(outerTagHelper.Children[2]).TagHelperTypeName);
+            Assert.Equal("PTestTagHelper", Assert.IsType<DefaultTagHelperCreateIntermediateNode>(outerTagHelper.Children[1]).TypeName);
+            Assert.Equal("Foo", Assert.IsType<DefaultTagHelperPropertyIntermediateNode>(outerTagHelper.Children[2]).PropertyName);
 
             var vcth = FindTagHelperNode(outerTagHelper.Children[0]);
-            Assert.Equal(expectedVCTHName, Assert.IsType<CreateTagHelperIRNode>(vcth.Children[1]).TagHelperTypeName);
-            Assert.Equal(expectedVCTHName, Assert.IsType<SetTagHelperPropertyIRNode>(vcth.Children[2]).TagHelperTypeName);
+            Assert.Equal(vcthFullName, Assert.IsType<DefaultTagHelperCreateIntermediateNode>(vcth.Children[1]).TypeName);
+            Assert.Equal("Foo", Assert.IsType<DefaultTagHelperPropertyIntermediateNode>(vcth.Children[2]).PropertyName);
 
 
             var @class = FindClassNode(irDocument);
-            Assert.Equal(3, @class.Children.Count);
+            Assert.Equal(5, @class.Children.Count);
 
-            var vcthClass = Assert.IsType<CSharpStatementIRNode>(@class.Children[2]);
-            var tokenNode = vcthClass.Children[0] as RazorIRToken;
-            Assert.Equal(
-                @"[Microsoft.AspNetCore.Razor.TagHelpers.HtmlTargetElementAttribute(""tagcloud"")]
-public class __Generated__TagCloudViewComponentTagHelper : Microsoft.AspNetCore.Razor.TagHelpers.TagHelper
-{
-    private readonly global::Microsoft.AspNetCore.Mvc.IViewComponentHelper _helper = null;
-    public __Generated__TagCloudViewComponentTagHelper(global::Microsoft.AspNetCore.Mvc.IViewComponentHelper helper)
-    {
-        _helper = helper;
-    }
-    [Microsoft.AspNetCore.Razor.TagHelpers.HtmlAttributeNotBoundAttribute, global::Microsoft.AspNetCore.Mvc.ViewFeatures.ViewContextAttribute]
-    public global::Microsoft.AspNetCore.Mvc.Rendering.ViewContext ViewContext { get; set; }
-    public System.Int32 Foo { get; set; }
-    public override async global::System.Threading.Tasks.Task ProcessAsync(Microsoft.AspNetCore.Razor.TagHelpers.TagHelperContext context, Microsoft.AspNetCore.Razor.TagHelpers.TagHelperOutput output)
-    {
-        (_helper as global::Microsoft.AspNetCore.Mvc.ViewFeatures.IViewContextAware)?.Contextualize(ViewContext);
-        var content = await _helper.InvokeAsync(""TagCloud"", new { Foo });
-        output.TagName = null;
-        output.Content.SetHtmlContent(content);
-    }
-}
-",
-                tokenNode.Content,
-                ignoreLineEndingDifferences: true);
-            Assert.Equal(tokenNode.Kind, RazorIRToken.TokenKind.CSharp);
+            Assert.IsType<ViewComponentTagHelperIntermediateNode>(@class.Children.Last());
         }
 
         private RazorCodeDocument CreateDocument(string content)
@@ -289,21 +206,21 @@ public class __Generated__TagCloudViewComponentTagHelper : Microsoft.AspNetCore.
             return RazorCodeDocument.Create(source);
         }
 
-        private RazorEngine CreateEngine(params TagHelperDescriptor[] tagHelpers)
+        private RazorProjectEngine CreateProjectEngine(params TagHelperDescriptor[] tagHelpers)
         {
-            return RazorEngine.Create(b =>
+            return RazorProjectEngine.Create(b =>
             {
                 b.Features.Add(new MvcViewDocumentClassifierPass());
 
-                b.Features.Add(new TagHelperFeature(tagHelpers));
+                b.Features.Add(new TestTagHelperFeature(tagHelpers));
             });
         }
 
-        private DocumentIRNode CreateIRDocument(RazorEngine engine, RazorCodeDocument codeDocument)
+        private DocumentIntermediateNode CreateIRDocument(RazorProjectEngine projectEngine, RazorCodeDocument codeDocument)
         {
-            for (var i = 0; i < engine.Phases.Count; i++)
+            for (var i = 0; i < projectEngine.Phases.Count; i++)
             {
-                var phase = engine.Phases[i];
+                var phase = projectEngine.Phases[i];
                 phase.Execute(codeDocument);
 
                 if (phase is IRazorDirectiveClassifierPhase)
@@ -312,82 +229,46 @@ public class __Generated__TagCloudViewComponentTagHelper : Microsoft.AspNetCore.
                 }
             }
 
-            return codeDocument.GetIRDocument();
+            // We also expect the default tag helper pass to run first.
+            var documentNode = codeDocument.GetDocumentIntermediateNode();
+
+            var defaultTagHelperPass = projectEngine.EngineFeatures.OfType<DefaultTagHelperOptimizationPass>().Single();
+            defaultTagHelperPass.Execute(codeDocument, documentNode);
+
+            return codeDocument.GetDocumentIntermediateNode();
         }
 
-        private ClassDeclarationIRNode FindClassNode(RazorIRNode node)
+        private ClassDeclarationIntermediateNode FindClassNode(IntermediateNode node)
         {
             var visitor = new ClassDeclarationNodeVisitor();
             visitor.Visit(node);
             return visitor.Node;
         }
 
-        private TagHelperIRNode FindTagHelperNode(RazorIRNode node)
+        private TagHelperIntermediateNode FindTagHelperNode(IntermediateNode node)
         {
             var visitor = new TagHelperNodeVisitor();
             visitor.Visit(node);
             return visitor.Node;
         }
 
-        private string GetCSharpContent(RazorIRNode node)
+        private class ClassDeclarationNodeVisitor : IntermediateNodeWalker
         {
-            var builder = new StringBuilder();
-            for (var i = 0; i < node.Children.Count; i++)
-            {
-                var child = node.Children[i] as RazorIRToken;
-                if (child.Kind == RazorIRToken.TokenKind.CSharp)
-                {
-                    builder.Append(child.Content);
-                }
-            }
+            public ClassDeclarationIntermediateNode Node { get; set; }
 
-            return builder.ToString();
-        }
-
-        private class ClassDeclarationNodeVisitor : RazorIRNodeWalker
-        {
-            public ClassDeclarationIRNode Node { get; set; }
-
-            public override void VisitClass(ClassDeclarationIRNode node)
+            public override void VisitClassDeclaration(ClassDeclarationIntermediateNode node)
             {
                 Node = node;
             }
         }
 
-        private class TagHelperNodeVisitor : RazorIRNodeWalker
+        private class TagHelperNodeVisitor : IntermediateNodeWalker
         {
-            public TagHelperIRNode Node { get; set; }
+            public TagHelperIntermediateNode Node { get; set; }
 
-            public override void VisitTagHelper(TagHelperIRNode node)
+            public override void VisitTagHelper(TagHelperIntermediateNode node)
             {
                 Node = node;
-            }
-        }
-
-        private class TagHelperFeature : ITagHelperFeature
-        {
-            public TagHelperFeature(TagHelperDescriptor[] tagHelpers)
-            {
-                Resolver = new TagHelperDescriptorResolver(tagHelpers);
-            }
-
-            public RazorEngine Engine { get; set; }
-
-            public ITagHelperDescriptorResolver Resolver { get; }
-        }
-
-        private class TagHelperDescriptorResolver : ITagHelperDescriptorResolver
-        {
-            public TagHelperDescriptorResolver(TagHelperDescriptor[] tagHelpers)
-            {
-                TagHelpers = tagHelpers;
-            }
-
-            public TagHelperDescriptor[] TagHelpers { get; }
-
-            public IEnumerable<TagHelperDescriptor> Resolve(IList<RazorDiagnostic> errors)
-            {
-                return TagHelpers;
             }
         }
     }

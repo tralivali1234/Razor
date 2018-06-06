@@ -3,6 +3,7 @@
 
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.AspNetCore.Razor.Language.Intermediate;
+using Moq;
 using Xunit;
 
 namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
@@ -10,44 +11,41 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
     public class NamespaceDirectiveTest
     {
         [Fact]
-        public void TryComputeNamespace_IncompleteDirective_UsesEmptyNamespace()
+        public void GetNamespace_IncompleteDirective_UsesEmptyNamespace()
         {
             // Arrange
             var source = "c:\\foo\\bar\\bleh.cshtml";
             var imports = "c:\\foo\\baz\\bleh.cshtml";
-            var node = new DirectiveIRNode()
+            var node = new DirectiveIntermediateNode()
             {
-                Descriptor = NamespaceDirective.Directive,
+                Directive = NamespaceDirective.Directive,
                 Source = new SourceSpan(imports, 0, 0, 0, 0),
             };
 
             // Act
-            var computed = NamespaceDirective.TryComputeNamespace(source, node, out var @namespace);
+            var @namespace = NamespaceDirective.GetNamespace(source, node);
 
             // Assert
-            Assert.False(computed);
             Assert.Equal(string.Empty, @namespace);
         }
 
         [Fact]
-        public void TryComputeNamespace_EmptyDirective_UsesEmptyNamespace()
+        public void GetNamespace_EmptyDirective_UsesEmptyNamespace()
         {
             // Arrange
             var source = "c:\\foo\\bar\\bleh.cshtml";
             var imports = "c:\\foo\\baz\\bleh.cshtml";
-            var node = new DirectiveIRNode()
+            var node = new DirectiveIntermediateNode()
             {
-                Descriptor = NamespaceDirective.Directive,
+                Directive = NamespaceDirective.Directive,
                 Source = new SourceSpan(imports, 0, 0, 0, 0),
             };
-            node.Children.Add(new DirectiveTokenIRNode() { Content = string.Empty });
-            node.Children[0].Parent = node;
+            node.Children.Add(new DirectiveTokenIntermediateNode() { Content = string.Empty });
 
             // Act
-            var computed = NamespaceDirective.TryComputeNamespace(source, node, out var @namespace);
+            var @namespace = NamespaceDirective.GetNamespace(source, node);
 
             // Assert
-            Assert.False(computed);
             Assert.Equal(string.Empty, @namespace);
         }
 
@@ -61,23 +59,21 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
         [InlineData("/foo.cshtml", "/foo/bar.cshtml")]
         [InlineData("c:\\foo.cshtml", "d:\\foo\\bar.cshtml")]
         [InlineData("c:\\foo\\bar\\bleh.cshtml", "c:\\foo\\baz\\bleh.cshtml")]
-        public void TryComputeNamespace_ForNonRelatedFiles_UsesNamespaceVerbatim(string source, string imports)
+        public void GetNamespace_ForNonRelatedFiles_UsesNamespaceVerbatim(string source, string imports)
         {
             // Arrange
-            var node = new DirectiveIRNode()
+            var node = new DirectiveIntermediateNode()
             {
-                Descriptor = NamespaceDirective.Directive,
+                Directive = NamespaceDirective.Directive,
                 Source = new SourceSpan(imports, 0, 0, 0, 0),
             };
 
-            node.Children.Add(new DirectiveTokenIRNode() { Content = "Base" });
-            node.Children[0].Parent = node;
+            node.Children.Add(new DirectiveTokenIntermediateNode() { Content = "Base" });
 
             // Act
-            var computed = NamespaceDirective.TryComputeNamespace(source, node, out var @namespace);
+            var @namespace = NamespaceDirective.GetNamespace(source, node);
 
             // Assert
-            Assert.False(computed);
             Assert.Equal("Base", @namespace);
         }
 
@@ -92,229 +88,265 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
         [InlineData("c:\\foo\\bar\\baz.cshtml", "c:\\_ViewImports.cshtml", "Base.foo.bar")]
         [InlineData("c:\\foo\\bar\\baz.cshtml", "c:\\foo\\_ViewImports.cshtml", "Base.bar")]
         [InlineData("c:\\Foo\\bar\\baz.cshtml", "c:\\foo\\_ViewImports.cshtml", "Base.bar")]
-        public void TryComputeNamespace_ForRelatedFiles_ComputesNamespaceWithSuffix(string source, string imports, string expected)
+        public void GetNamespace_ForRelatedFiles_ComputesNamespaceWithSuffix(string source, string imports, string expected)
         {
             // Arrange
-            var node = new DirectiveIRNode()
+            var node = new DirectiveIntermediateNode()
             {
-                Descriptor = NamespaceDirective.Directive,
+                Directive = NamespaceDirective.Directive,
                 Source = new SourceSpan(imports, 0, 0, 0, 0),
             };
 
-            node.Children.Add(new DirectiveTokenIRNode() { Content = "Base" });
-            node.Children[0].Parent = node;
+            node.Children.Add(new DirectiveTokenIntermediateNode() { Content = "Base" });
 
             // Act
-            var computed = NamespaceDirective.TryComputeNamespace(source, node, out var @namespace);
+            var @namespace = NamespaceDirective.GetNamespace(source, node);
 
             // Assert
-            Assert.True(computed);
             Assert.Equal(expected, @namespace);
         }
 
         // This is the case where a _ViewImports sets the namespace.
         [Fact]
-        public void Pass_SetsNamespaceAndClassName_ComputedFromImports()
+        public void Pass_SetsNamespace_ComputedFromImports()
         {
             // Arrange
-            var builder = RazorIRBuilder.Document();
+            var document = new DocumentIntermediateNode();
+            var builder = IntermediateNodeBuilder.Create(document);
 
-            builder.Push(new DirectiveIRNode()
+            builder.Push(new DirectiveIntermediateNode()
             {
-                Descriptor = NamespaceDirective.Directive,
+                Directive = NamespaceDirective.Directive,
                 Source = new SourceSpan("/Account/_ViewImports.cshtml", 0, 0, 0, 0),
             });
-            builder.Add(new DirectiveTokenIRNode() { Content = "WebApplication.Account" });
+            builder.Add(new DirectiveTokenIntermediateNode() { Content = "WebApplication.Account" });
             builder.Pop();
 
-            var @namespace = new NamespaceDeclarationIRNode() { Content = "default" };
+            var @namespace = new NamespaceDeclarationIntermediateNode() { Content = "default" };
             builder.Push(@namespace);
 
-            var @class = new ClassDeclarationIRNode() { Name = "default" };
+            var @class = new ClassDeclarationIntermediateNode() { ClassName = "default" };
             builder.Add(@class);
-
-            var irDocument = (DocumentIRNode)builder.Build();
-            irDocument.DocumentKind = RazorPageDocumentClassifierPass.RazorPageDocumentKind;
+            
+            document.DocumentKind = RazorPageDocumentClassifierPass.RazorPageDocumentKind;
 
             var codeDocument = RazorCodeDocument.Create(RazorSourceDocument.Create("ignored", "/Account/Manage/AddUser.cshtml"));
 
             var pass = new NamespaceDirective.Pass();
-            pass.Engine = RazorEngine.CreateEmpty(b => { });
+            pass.Engine = Mock.Of<RazorEngine>();
 
             // Act
-            pass.Execute(codeDocument, irDocument);
+            pass.Execute(codeDocument, document);
 
             // Assert
             Assert.Equal("WebApplication.Account.Manage", @namespace.Content);
-            Assert.Equal("AddUser_Page", @class.Name);
+            Assert.Equal("default", @class.ClassName);
         }
 
         // This is the case where the source file sets the namespace.
         [Fact]
-        public void Pass_SetsNamespaceAndClassName_ComputedFromSource()
+        public void Pass_SetsNamespace_ComputedFromSource()
         {
             // Arrange
-            var builder = RazorIRBuilder.Document();
+            var document = new DocumentIntermediateNode();
+            var builder = IntermediateNodeBuilder.Create(document);
 
             // This will be ignored.
-            builder.Push(new DirectiveIRNode()
+            builder.Push(new DirectiveIntermediateNode()
             {
-                Descriptor = NamespaceDirective.Directive,
+                Directive = NamespaceDirective.Directive,
                 Source = new SourceSpan("/Account/_ViewImports.cshtml", 0, 0, 0, 0),
             });
-            builder.Add(new DirectiveTokenIRNode() { Content = "ignored" });
+            builder.Add(new DirectiveTokenIntermediateNode() { Content = "ignored" });
             builder.Pop();
 
             // This will be used.
-            builder.Push(new DirectiveIRNode()
+            builder.Push(new DirectiveIntermediateNode()
             {
-                Descriptor = NamespaceDirective.Directive,
+                Directive = NamespaceDirective.Directive,
                 Source = new SourceSpan("/Account/Manage/AddUser.cshtml", 0, 0, 0, 0),
             });
-            builder.Add(new DirectiveTokenIRNode() { Content = "WebApplication.Account.Manage" });
+            builder.Add(new DirectiveTokenIntermediateNode() { Content = "WebApplication.Account.Manage" });
             builder.Pop();
 
-            var @namespace = new NamespaceDeclarationIRNode() { Content = "default" };
+            var @namespace = new NamespaceDeclarationIntermediateNode() { Content = "default" };
             builder.Push(@namespace);
 
-            var @class = new ClassDeclarationIRNode() { Name = "default" };
+            var @class = new ClassDeclarationIntermediateNode() { ClassName = "default" };
             builder.Add(@class);
-
-            var irDocument = (DocumentIRNode)builder.Build();
-            irDocument.DocumentKind = RazorPageDocumentClassifierPass.RazorPageDocumentKind;
+            
+            document.DocumentKind = RazorPageDocumentClassifierPass.RazorPageDocumentKind;
 
             var codeDocument = RazorCodeDocument.Create(RazorSourceDocument.Create("ignored", "/Account/Manage/AddUser.cshtml"));
 
             var pass = new NamespaceDirective.Pass();
-            pass.Engine = RazorEngine.CreateEmpty(b => { });
+            pass.Engine = Mock.Of<RazorEngine>();
 
             // Act
-            pass.Execute(codeDocument, irDocument);
+            pass.Execute(codeDocument, document);
 
             // Assert
             Assert.Equal("WebApplication.Account.Manage", @namespace.Content);
-            Assert.Equal("AddUser_Page", @class.Name);
+            Assert.Equal("default", @class.ClassName);
+        }
+
+        // Handles cases where invalid characters appears in FileNames. Note that we don't sanitize the part of
+        // the namespace that you put in an import, just the file-based-suffix. Garbage in, garbage out.
+        [Fact]
+        public void Pass_SetsNamespace_SanitizesClassAndNamespace()
+        {
+            // Arrange
+            var document = new DocumentIntermediateNode();
+            var builder = IntermediateNodeBuilder.Create(document);
+
+            builder.Push(new DirectiveIntermediateNode()
+            {
+                Directive = NamespaceDirective.Directive,
+                Source = new SourceSpan("/Account/_ViewImports.cshtml", 0, 0, 0, 0),
+            });
+            builder.Add(new DirectiveTokenIntermediateNode() { Content = "WebApplication.Account" });
+            builder.Pop();
+
+            var @namespace = new NamespaceDeclarationIntermediateNode() { Content = "default" };
+            builder.Push(@namespace);
+
+            var @class = new ClassDeclarationIntermediateNode() { ClassName = "default" };
+            builder.Add(@class);
+
+            document.DocumentKind = RazorPageDocumentClassifierPass.RazorPageDocumentKind;
+
+            var codeDocument = RazorCodeDocument.Create(RazorSourceDocument.Create("ignored", "/Account/Manage-Info/Add+User.cshtml"));
+
+            var pass = new NamespaceDirective.Pass();
+            pass.Engine = Mock.Of<RazorEngine>();
+
+            // Act
+            pass.Execute(codeDocument, document);
+
+            // Assert
+            Assert.Equal("WebApplication.Account.Manage_Info", @namespace.Content);
+            Assert.Equal("default", @class.ClassName);
         }
 
         // This is the case where the source file sets the namespace.
         [Fact]
-        public void Pass_SetsNamespaceAndClassName_ComputedFromSource_ForView()
+        public void Pass_SetsNamespace_ComputedFromSource_ForView()
         {
             // Arrange
-            var builder = RazorIRBuilder.Document();
+            var document = new DocumentIntermediateNode();
+            var builder = IntermediateNodeBuilder.Create(document);
 
             // This will be ignored.
-            builder.Push(new DirectiveIRNode()
+            builder.Push(new DirectiveIntermediateNode()
             {
-                Descriptor = NamespaceDirective.Directive,
+                Directive = NamespaceDirective.Directive,
                 Source = new SourceSpan("/Account/_ViewImports.cshtml", 0, 0, 0, 0),
             });
-            builder.Add(new DirectiveTokenIRNode() { Content = "ignored" });
+            builder.Add(new DirectiveTokenIntermediateNode() { Content = "ignored" });
             builder.Pop();
 
             // This will be used.
-            builder.Push(new DirectiveIRNode()
+            builder.Push(new DirectiveIntermediateNode()
             {
-                Descriptor = NamespaceDirective.Directive,
+                Directive = NamespaceDirective.Directive,
                 Source = new SourceSpan("/Account/Manage/AddUser.cshtml", 0, 0, 0, 0),
             });
-            builder.Add(new DirectiveTokenIRNode() { Content = "WebApplication.Account.Manage" });
+            builder.Add(new DirectiveTokenIntermediateNode() { Content = "WebApplication.Account.Manage" });
             builder.Pop();
 
-            var @namespace = new NamespaceDeclarationIRNode() { Content = "default" };
+            var @namespace = new NamespaceDeclarationIntermediateNode() { Content = "default" };
             builder.Push(@namespace);
 
-            var @class = new ClassDeclarationIRNode() { Name = "default" };
+            var @class = new ClassDeclarationIntermediateNode() { ClassName = "default" };
             builder.Add(@class);
-
-            var irDocument = (DocumentIRNode)builder.Build();
-            irDocument.DocumentKind = MvcViewDocumentClassifierPass.MvcViewDocumentKind;
+            
+            document.DocumentKind = MvcViewDocumentClassifierPass.MvcViewDocumentKind;
 
             var codeDocument = RazorCodeDocument.Create(RazorSourceDocument.Create("ignored", "/Account/Manage/AddUser.cshtml"));
 
             var pass = new NamespaceDirective.Pass();
-            pass.Engine = RazorEngine.CreateEmpty(b => { });
+            pass.Engine = Mock.Of<RazorEngine>();
 
             // Act
-            pass.Execute(codeDocument, irDocument);
+            pass.Execute(codeDocument, document);
 
             // Assert
             Assert.Equal("WebApplication.Account.Manage", @namespace.Content);
-            Assert.Equal("AddUser_View", @class.Name);
+            Assert.Equal("default", @class.ClassName);
         }
 
         // This handles an error case where we can't determine the relationship between the
         // imports and the source.
         [Fact]
-        public void Pass_SetsNamespaceButNotClassName_VerbatimFromImports()
+        public void Pass_SetsNamespace_VerbatimFromImports()
         {
             // Arrange
-            var builder = RazorIRBuilder.Document();
+            var document = new DocumentIntermediateNode();
+            var builder = IntermediateNodeBuilder.Create(document);
 
-            builder.Push(new DirectiveIRNode()
+            builder.Push(new DirectiveIntermediateNode()
             {
-                Descriptor = NamespaceDirective.Directive,
+                Directive = NamespaceDirective.Directive,
                 Source = new SourceSpan(null, 0, 0, 0, 0),
             });
-            builder.Add(new DirectiveTokenIRNode() { Content = "WebApplication.Account" });
+            builder.Add(new DirectiveTokenIntermediateNode() { Content = "WebApplication.Account" });
             builder.Pop();
 
-            var @namespace = new NamespaceDeclarationIRNode() { Content = "default" };
+            var @namespace = new NamespaceDeclarationIntermediateNode() { Content = "default" };
             builder.Push(@namespace);
 
-            var @class = new ClassDeclarationIRNode() { Name = "default" };
+            var @class = new ClassDeclarationIntermediateNode() { ClassName = "default" };
             builder.Add(@class);
-
-            var irDocument = (DocumentIRNode)builder.Build();
-            irDocument.DocumentKind = RazorPageDocumentClassifierPass.RazorPageDocumentKind;
+            
+            document.DocumentKind = RazorPageDocumentClassifierPass.RazorPageDocumentKind;
 
             var codeDocument = RazorCodeDocument.Create(RazorSourceDocument.Create("ignored", "/Account/Manage/AddUser.cshtml"));
 
             var pass = new NamespaceDirective.Pass();
-            pass.Engine = RazorEngine.CreateEmpty(b => { });
+            pass.Engine = Mock.Of<RazorEngine>();
 
             // Act
-            pass.Execute(codeDocument, irDocument);
+            pass.Execute(codeDocument, document);
 
             // Assert
             Assert.Equal("WebApplication.Account", @namespace.Content);
-            Assert.Equal("default", @class.Name);
+            Assert.Equal("default", @class.ClassName);
         }
 
         [Fact]
         public void Pass_DoesNothing_ForUnknownDocumentKind()
         {
             // Arrange
-            var builder = RazorIRBuilder.Document();
+            var document = new DocumentIntermediateNode();
+            var builder = IntermediateNodeBuilder.Create(document);
 
-            builder.Push(new DirectiveIRNode()
+            builder.Push(new DirectiveIntermediateNode()
             {
-                Descriptor = NamespaceDirective.Directive,
+                Directive = NamespaceDirective.Directive,
                 Source = new SourceSpan(null, 0, 0, 0, 0),
             });
-            builder.Add(new DirectiveTokenIRNode() { Content = "WebApplication.Account" });
+            builder.Add(new DirectiveTokenIntermediateNode() { Content = "WebApplication.Account" });
             builder.Pop();
 
-            var @namespace = new NamespaceDeclarationIRNode() { Content = "default" };
+            var @namespace = new NamespaceDeclarationIntermediateNode() { Content = "default" };
             builder.Push(@namespace);
 
-            var @class = new ClassDeclarationIRNode() { Name = "default" };
+            var @class = new ClassDeclarationIntermediateNode() { ClassName = "default" };
             builder.Add(@class);
-
-            var irDocument = (DocumentIRNode)builder.Build();
-            irDocument.DocumentKind = null;
+            
+            document.DocumentKind = null;
 
             var codeDocument = RazorCodeDocument.Create(RazorSourceDocument.Create("ignored", "/Account/Manage/AddUser.cshtml"));
 
             var pass = new NamespaceDirective.Pass();
-            pass.Engine = RazorEngine.CreateEmpty(b => { });
+            pass.Engine = Mock.Of<RazorEngine>();
 
             // Act
-            pass.Execute(codeDocument, irDocument);
+            pass.Execute(codeDocument, document);
 
             // Assert
             Assert.Equal("default", @namespace.Content);
-            Assert.Equal("default", @class.Name);
+            Assert.Equal("default", @class.ClassName);
         }
     }
 }

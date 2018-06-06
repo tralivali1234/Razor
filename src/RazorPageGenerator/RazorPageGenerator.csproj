@@ -1,14 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="..\..\build\common.props" />
-
   <PropertyGroup>
     <Description>Builds Razor pages for views in a project. For internal use only.</Description>
-    <TargetFramework>netcoreapp1.0</TargetFramework>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
     <AssemblyName>dotnet-razorpagegenerator</AssemblyName>
     <PackageId>RazorPageGenerator</PackageId>
     <OutputType>Exe</OutputType>
-    <RuntimeFrameworkVersion>1.0.4</RuntimeFrameworkVersion>
+    <EnableApiCheck>false</EnableApiCheck>
   </PropertyGroup>
 
   <ItemGroup>

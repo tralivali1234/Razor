@@ -1,35 +1,37 @@
 Document - 
-    Checksum - 
+    RazorCompiledItemAttribute - 
     NamespaceDeclaration -  - Razor
-        UsingStatement -  - System
-        UsingStatement -  - System.Threading.Tasks
+        RazorSourceChecksumAttribute - 
         ClassDeclaration -  - public - Template -  - 
-            DeclarePreallocatedTagHelperAttribute -  - __tagHelperAttribute_0 - value - Hello - HtmlAttributeValueStyle.DoubleQuotes
-            DeclarePreallocatedTagHelperHtmlAttribute -  - __tagHelperAttribute_1 - type - text - HtmlAttributeValueStyle.SingleQuotes
-            DeclarePreallocatedTagHelperHtmlAttribute -  - __tagHelperAttribute_2 - unbound - foo - HtmlAttributeValueStyle.DoubleQuotes
-            DeclareTagHelperFields -  - PTagHelper - FormTagHelper - InputTagHelper
-            RazorMethodDeclaration -  - public - async, override - global::System.Threading.Tasks.Task - ExecuteAsync
-                TagHelper - (31:1,0 [20] NestedTagHelpers.cshtml)
-                    InitializeTagHelperStructure -  - p - TagMode.StartTagAndEndTag
+            PreallocatedTagHelperPropertyValue -  - __tagHelperAttribute_0 - value - Hello - HtmlAttributeValueStyle.DoubleQuotes
+            PreallocatedTagHelperHtmlAttributeValue -  - __tagHelperAttribute_1 - type - text - HtmlAttributeValueStyle.SingleQuotes
+            PreallocatedTagHelperHtmlAttributeValue -  - __tagHelperAttribute_2 - unbound - foo - HtmlAttributeValueStyle.DoubleQuotes
+            DefaultTagHelperRuntime - 
+            FieldDeclaration -  - private - global::PTagHelper - __PTagHelper
+            FieldDeclaration -  - private - global::FormTagHelper - __FormTagHelper
+            FieldDeclaration -  - private - global::InputTagHelper - __InputTagHelper
+            MethodDeclaration -  - public async override - global::System.Threading.Tasks.Task - ExecuteAsync
+                TagHelper - (31:1,0 [20] NestedTagHelpers.cshtml) - p - TagMode.StartTagAndEndTag
+                    DefaultTagHelperBody - 
                         HtmlContent - (43:1,12 [4] NestedTagHelpers.cshtml)
-                            RazorIRToken - (43:1,12 [4] NestedTagHelpers.cshtml) - Html - Hola
-                    CreateTagHelper -  - PTagHelper
-                    AddTagHelperHtmlAttribute -  - someattr - HtmlAttributeValueStyle.Minimized
-                    ExecuteTagHelpers - 
+                            IntermediateToken - (43:1,12 [4] NestedTagHelpers.cshtml) - Html - Hola
+                    DefaultTagHelperCreate -  - PTagHelper
+                    DefaultTagHelperHtmlAttribute -  - someattr - HtmlAttributeValueStyle.Minimized
+                    DefaultTagHelperExecute - 
                 HtmlContent - (51:1,20 [2] NestedTagHelpers.cshtml)
-                    RazorIRToken - (51:1,20 [2] NestedTagHelpers.cshtml) - Html - \n
-                TagHelper - (53:2,0 [68] NestedTagHelpers.cshtml)
-                    InitializeTagHelperStructure -  - form - TagMode.StartTagAndEndTag
+                    IntermediateToken - (51:1,20 [2] NestedTagHelpers.cshtml) - Html - \n
+                TagHelper - (53:2,0 [68] NestedTagHelpers.cshtml) - form - TagMode.StartTagAndEndTag
+                    DefaultTagHelperBody - 
                         HtmlContent - (73:2,20 [6] NestedTagHelpers.cshtml)
-                            RazorIRToken - (73:2,20 [6] NestedTagHelpers.cshtml) - Html - \n    
-                        TagHelper - (79:3,4 [33] NestedTagHelpers.cshtml)
-                            InitializeTagHelperStructure -  - input - TagMode.SelfClosing
-                            CreateTagHelper -  - InputTagHelper
-                            SetPreallocatedTagHelperProperty -  - __tagHelperAttribute_0 - value - FooProp
-                            AddPreallocatedTagHelperHtmlAttribute -  - __tagHelperAttribute_1
-                            ExecuteTagHelpers - 
+                            IntermediateToken - (73:2,20 [6] NestedTagHelpers.cshtml) - Html - \n    
+                        TagHelper - (79:3,4 [33] NestedTagHelpers.cshtml) - input - TagMode.SelfClosing
+                            DefaultTagHelperBody - 
+                            DefaultTagHelperCreate -  - InputTagHelper
+                            PreallocatedTagHelperProperty - (92:3,17 [5] NestedTagHelpers.cshtml) - __tagHelperAttribute_0 - value - FooProp
+                            PreallocatedTagHelperHtmlAttribute -  - __tagHelperAttribute_1
+                            DefaultTagHelperExecute - 
                         HtmlContent - (112:3,37 [2] NestedTagHelpers.cshtml)
-                            RazorIRToken - (112:3,37 [2] NestedTagHelpers.cshtml) - Html - \n
-                    CreateTagHelper -  - FormTagHelper
-                    AddPreallocatedTagHelperHtmlAttribute -  - __tagHelperAttribute_2
-                    ExecuteTagHelpers - 
+                            IntermediateToken - (112:3,37 [2] NestedTagHelpers.cshtml) - Html - \n
+                    DefaultTagHelperCreate -  - FormTagHelper
+                    PreallocatedTagHelperHtmlAttribute -  - __tagHelperAttribute_2
+                    DefaultTagHelperExecute - 

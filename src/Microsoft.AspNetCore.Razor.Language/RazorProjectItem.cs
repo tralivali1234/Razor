@@ -7,9 +7,9 @@ using System.IO;
 namespace Microsoft.AspNetCore.Razor.Language
 {
     /// <summary>
-    /// An item in <see cref="RazorProject"/>.
+    /// An item in a <see cref="RazorProjectFileSystem"/>.
     /// </summary>
-    [DebuggerDisplay("{CombinedPath}")]
+    [DebuggerDisplay("{" + nameof(DebuggerToString) + "()}")]
     public abstract class RazorProjectItem
     {
         /// <summary>
@@ -18,14 +18,22 @@ namespace Microsoft.AspNetCore.Razor.Language
         public abstract string BasePath { get; }
 
         /// <summary>
-        /// Path relative to <see cref="BasePath"/>.
+        /// File path relative to <see cref="BasePath"/>. This property uses the project path syntax,
+        /// using <c>/</c> as a path separator and does not follow the operating system's file system
+        /// conventions.
         /// </summary>
-        public abstract string Path { get; }
+        public abstract string FilePath { get; }
 
         /// <summary>
-        /// The absolute path to the file, including the file name.
+        /// The absolute physical (file system) path to the file, including the file name.
         /// </summary>
         public abstract string PhysicalPath { get; }
+
+        /// <summary>
+        /// The relative physical (file system) path to the file, including the file name. Relative to the
+        /// physical path of the <see cref="BasePath"/>.
+        /// </summary>
+        public virtual string RelativePhysicalPath => null;
 
         /// <summary>
         /// Gets the file contents as readonly <see cref="Stream"/>.
@@ -41,17 +49,17 @@ namespace Microsoft.AspNetCore.Razor.Language
         /// <summary>
         /// The root relative path of the item.
         /// </summary>
-        public virtual string CombinedPath
+        public string CombinedPath
         {
             get
             {
                 if (BasePath == "/")
                 {
-                    return Path;
+                    return FilePath;
                 }
                 else
                 {
-                    return BasePath + Path;
+                    return BasePath + FilePath;
                 }
             }
         }
@@ -59,7 +67,7 @@ namespace Microsoft.AspNetCore.Razor.Language
         /// <summary>
         /// The extension of the file.
         /// </summary>
-        public virtual string Extension
+        public string Extension
         {
             get
             {
@@ -78,32 +86,37 @@ namespace Microsoft.AspNetCore.Razor.Language
         /// <summary>
         /// The name of the file including the extension.
         /// </summary>
-        public virtual string FileName
+        public string FileName
         {
             get
             {
-                var index = Path.LastIndexOf('/');
-                return Path.Substring(index + 1);
+                var index = FilePath.LastIndexOf('/');
+                return FilePath.Substring(index + 1);
             }
         }
 
         /// <summary>
-        /// Path relative to <see cref="BasePath"/> without the extension.
+        /// File path relative to <see cref="BasePath"/> without the extension.
         /// </summary>
-        public virtual string PathWithoutExtension
+        public string FilePathWithoutExtension
         {
             get
             {
-                var index = Path.LastIndexOf('.');
+                var index = FilePath.LastIndexOf('.');
                 if (index == -1)
                 {
-                    return Path;
+                    return FilePath;
                 }
                 else
                 {
-                    return Path.Substring(0, index);
+                    return FilePath.Substring(0, index);
                 }
             }
+        }
+
+        private string DebuggerToString()
+        {
+            return CombinedPath;
         }
     }
 }

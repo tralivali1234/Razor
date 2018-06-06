@@ -16,13 +16,14 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         public static TagHelperBlockBuilder Rewrite(
             string tagName,
             bool validStructure,
+            RazorParserFeatureFlags featureFlags,
             Block tag,
             TagHelperBinding bindingResult,
             ErrorSink errorSink)
         {
             // There will always be at least one child for the '<'.
             var start = tag.Children.First().Start;
-            var attributes = GetTagAttributes(tagName, validStructure, tag, bindingResult, errorSink);
+            var attributes = GetTagAttributes(tagName, validStructure, tag, bindingResult, errorSink, featureFlags);
             var tagMode = GetTagMode(tagName, tag, bindingResult, errorSink);
 
             return new TagHelperBlockBuilder(tagName, tagMode, start, attributes, bindingResult);
@@ -33,7 +34,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             bool validStructure,
             Block tagBlock,
             TagHelperBinding bindingResult,
-            ErrorSink errorSink)
+            ErrorSink errorSink,
+            RazorParserFeatureFlags featureFlags)
         {
             var attributes = new List<TagHelperAttributeNode>();
 
@@ -42,62 +44,53 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             // no end tag to ignore.
             var symbolOffset = validStructure ? 2 : 1;
             var attributeChildren = tagBlock.Children.Skip(1).Take(tagBlock.Children.Count() - symbolOffset);
+            var processedBoundAttributeNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var child in attributeChildren)
             {
                 TryParseResult result;
                 if (child.IsBlock)
                 {
-                    result = TryParseBlock(tagName, (Block)child, bindingResult.Descriptors, errorSink);
+                    result = TryParseBlock(tagName, (Block)child, bindingResult.Descriptors, errorSink, processedBoundAttributeNames);
                 }
                 else
                 {
-                    result = TryParseSpan((Span)child, bindingResult.Descriptors, errorSink);
+                    result = TryParseSpan((Span)child, bindingResult.Descriptors, errorSink, processedBoundAttributeNames);
                 }
 
                 // Only want to track the attribute if we succeeded in parsing its corresponding Block/Span.
                 if (result != null)
                 {
-                    SourceLocation? errorLocation = null;
-
-                    // Check if it's a bound attribute that is minimized or if it's a bound non-string attribute that
-                    // is null or whitespace.
-                    if ((result.IsBoundAttribute && result.AttributeValueNode == null) ||
-                        (result.IsBoundNonStringAttribute &&
+                    // Check if it's a non-boolean bound attribute that is minimized or if it's a bound
+                    // non-string attribute that has null or whitespace content.
+                    var isMinimized = result.AttributeValueNode == null;
+                    var isValidMinimizedAttribute = featureFlags.AllowMinimizedBooleanTagHelperAttributes && result.IsBoundBooleanAttribute;
+                    if ((isMinimized &&
+                        result.IsBoundAttribute &&
+                        !isValidMinimizedAttribute) ||
+                        (!isMinimized &&
+                        result.IsBoundNonStringAttribute &&
                          IsNullOrWhitespaceAttributeValue(result.AttributeValueNode)))
                     {
-                        errorLocation = GetAttributeNameStartLocation(child);
-
-                        errorSink.OnError(
-                            errorLocation.Value,
-                            LegacyResources.FormatRewriterError_EmptyTagHelperBoundAttribute(
-                                result.AttributeName,
-                                tagName,
-                                GetPropertyType(result.AttributeName, bindingResult.Descriptors)),
-                            result.AttributeName.Length);
+                        var errorLocation = GetAttributeNameLocation(child, result.AttributeName);
+                        var propertyTypeName = GetPropertyType(result.AttributeName, bindingResult.Descriptors);
+                        var diagnostic = RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(errorLocation, result.AttributeName, tagName, propertyTypeName);
+                        errorSink.OnError(diagnostic);
                     }
 
                     // Check if the attribute was a prefix match for a tag helper dictionary property but the
                     // dictionary key would be the empty string.
                     if (result.IsMissingDictionaryKey)
                     {
-                        if (!errorLocation.HasValue)
-                        {
-                            errorLocation = GetAttributeNameStartLocation(child);
-                        }
-
-                        errorSink.OnError(
-                            errorLocation.Value,
-                            LegacyResources.FormatTagHelperBlockRewriter_IndexerAttributeNameMustIncludeKey(
-                                result.AttributeName,
-                                tagName),
-                            result.AttributeName.Length);
+                        var errorLocation = GetAttributeNameLocation(child, result.AttributeName);
+                        var diagnostic = RazorDiagnosticFactory.CreateParsing_TagHelperIndexerAttributeNameMustIncludeKey(errorLocation, result.AttributeName, tagName);
+                        errorSink.OnError(diagnostic);
                     }
 
                     var attributeNode = new TagHelperAttributeNode(
                         result.AttributeName,
                         result.AttributeValueNode,
-                        result.AttributeValueStyle);
+                        result.AttributeStructure);
 
                     attributes.Add(attributeNode);
                 }
@@ -145,7 +138,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         private static TryParseResult TryParseSpan(
             Span span,
             IEnumerable<TagHelperDescriptor> descriptors,
-            ErrorSink errorSink)
+            ErrorSink errorSink,
+            HashSet<string> processedBoundAttributeNames)
         {
             var afterEquals = false;
             var builder = new SpanBuilder(span.Start)
@@ -162,7 +156,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
 
             // Default to DoubleQuotes. We purposefully do not persist NoQuotes ValueStyle to stay consistent with the
             // TryParseBlock() variation of attribute parsing.
-            var attributeValueStyle = HtmlAttributeValueStyle.DoubleQuotes;
+            var attributeValueStyle = AttributeStructure.DoubleQuotes;
 
             // The symbolOffset is initialized to 0 to expect worst case: "class=". If a quote is found later on for
             // the attribute value the symbolOffset is adjusted accordingly.
@@ -242,7 +236,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                     {
                         if (htmlSymbols[i].Type == HtmlSymbolType.SingleQuote)
                         {
-                            attributeValueStyle = HtmlAttributeValueStyle.SingleQuotes;
+                            attributeValueStyle = AttributeStructure.SingleQuotes;
                         }
 
                         symbolStartLocation = htmlSymbols[i].Start;
@@ -290,30 +284,29 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 // ex: <myTH class="btn"| |
                 if (!string.IsNullOrWhiteSpace(span.Content))
                 {
-                    errorSink.OnError(
-                        span.Start,
-                        LegacyResources.TagHelperBlockRewriter_TagHelperAttributeListMustBeWellFormed,
-                        span.Content.Length);
+                    var location = new SourceSpan(span.Start, span.Content.Length);
+                    var diagnostic = RazorDiagnosticFactory.CreateParsing_TagHelperAttributeListMustBeWellFormed(location);
+                    errorSink.OnError(diagnostic);
                 }
 
                 return null;
             }
 
-            var result = CreateTryParseResult(name, descriptors);
+            var result = CreateTryParseResult(name, descriptors, processedBoundAttributeNames);
 
             // If we're not after an equal then we should treat the value as if it were a minimized attribute.
             Span attributeValue = null;
             if (afterEquals)
             {
-                attributeValue = CreateMarkupAttribute(builder, result.IsBoundNonStringAttribute);
+                attributeValue = CreateMarkupAttribute(builder, result);
             }
             else
             {
-                attributeValueStyle = HtmlAttributeValueStyle.Minimized;
+                attributeValueStyle = AttributeStructure.Minimized;
             }
 
             result.AttributeValueNode = attributeValue;
-            result.AttributeValueStyle = attributeValueStyle;
+            result.AttributeStructure = attributeValueStyle;
             return result;
         }
 
@@ -321,7 +314,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             string tagName,
             Block block,
             IEnumerable<TagHelperDescriptor> descriptors,
-            ErrorSink errorSink)
+            ErrorSink errorSink,
+            HashSet<string> processedBoundAttributeNames)
         {
             // TODO: Accept more than just spans: https://github.com/aspnet/Razor/issues/96.
             // The first child will only ever NOT be a Span if a user is doing something like:
@@ -329,12 +323,11 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
 
             var childSpan = block.Children.First() as Span;
 
-            if (childSpan == null || childSpan.Kind != SpanKind.Markup)
+            if (childSpan == null || childSpan.Kind != SpanKindInternal.Markup)
             {
-                errorSink.OnError(
-                    block.Start,
-                    LegacyResources.FormatTagHelpers_CannotHaveCSharpInTagDeclaration(tagName),
-                    block.Length);
+                var location = new SourceSpan(block.Start, block.Length);
+                var diagnostic = RazorDiagnosticFactory.CreateParsing_TagHelpersCannotHaveCSharpInTagDeclaration(location, tagName);
+                errorSink.OnError(diagnostic);
 
                 return null;
             }
@@ -345,7 +338,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             // i.e. <div class="plain text in attribute">
             if (builder.Children.Count == 1)
             {
-                return TryParseSpan(childSpan, descriptors, errorSink);
+                return TryParseSpan(childSpan, descriptors, errorSink, processedBoundAttributeNames);
             }
 
             var nameSymbols = childSpan
@@ -358,16 +351,15 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             var name = string.Concat(nameSymbols);
             if (string.IsNullOrEmpty(name))
             {
-                errorSink.OnError(
-                    childSpan.Start,
-                    LegacyResources.FormatTagHelpers_AttributesMustHaveAName(tagName),
-                    childSpan.Length);
+                var location = new SourceSpan(childSpan.Start, childSpan.Length);
+                var diagnostic = RazorDiagnosticFactory.CreateParsing_TagHelperAttributesMustHaveAName(location, tagName);
+                errorSink.OnError(diagnostic);
 
                 return null;
             }
 
             // Have a name now. Able to determine correct isBoundNonStringAttribute value.
-            var result = CreateTryParseResult(name, descriptors);
+            var result = CreateTryParseResult(name, descriptors, processedBoundAttributeNames);
 
             var firstChild = builder.Children[0] as Span;
             if (firstChild != null && firstChild.Symbols[0] is HtmlSymbol)
@@ -375,20 +367,32 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 var htmlSymbol = firstChild.Symbols[firstChild.Symbols.Count - 1] as HtmlSymbol;
                 switch (htmlSymbol.Type)
                 {
-                    // Treat NoQuotes and DoubleQuotes equivalently. We purposefully do not persist NoQuotes
-                    // ValueStyles at code generation time to protect users from rendering dynamic content with spaces
-                    // that can break attributes.
-                    // Ex: <tag my-attribute=@value /> where @value results in the test "hello world".
-                    // This way, the above code would render <tag my-attribute="hello world" />.
                     case HtmlSymbolType.Equals:
+                        if (builder.Children.Count == 2 &&
+                            builder.Children[1] is Span value &&
+                            value.Kind == SpanKindInternal.Markup)
+                        {
+                            // Attribute value is a string literal. Eg: <tag my-attribute=foo />.
+                            result.AttributeStructure = AttributeStructure.NoQuotes;
+                        }
+                        else
+                        {
+                            // Could be an expression, treat NoQuotes and DoubleQuotes equivalently. We purposefully do not persist NoQuotes
+                            // ValueStyles at code generation time to protect users from rendering dynamic content with spaces
+                            // that can break attributes.
+                            // Ex: <tag my-attribute=@value /> where @value results in the test "hello world".
+                            // This way, the above code would render <tag my-attribute="hello world" />.
+                            result.AttributeStructure = AttributeStructure.DoubleQuotes;
+                        }
+                        break;
                     case HtmlSymbolType.DoubleQuote:
-                        result.AttributeValueStyle = HtmlAttributeValueStyle.DoubleQuotes;
+                        result.AttributeStructure = AttributeStructure.DoubleQuotes;
                         break;
                     case HtmlSymbolType.SingleQuote:
-                        result.AttributeValueStyle = HtmlAttributeValueStyle.SingleQuotes;
+                        result.AttributeStructure = AttributeStructure.SingleQuotes;
                         break;
                     default:
-                        result.AttributeValueStyle = HtmlAttributeValueStyle.Minimized;
+                        result.AttributeStructure = AttributeStructure.Minimized;
                         break;
                 }
             }
@@ -429,7 +433,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                     var spanBuilder = new SpanBuilder(child);
 
                     result.AttributeValueNode =
-                        CreateMarkupAttribute(spanBuilder, result.IsBoundNonStringAttribute);
+                        CreateMarkupAttribute(spanBuilder, result);
 
                     return result;
                 }
@@ -455,7 +459,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                         // key="@int + @case" -> MyTagHelper.key = int + @case
                         // key="@(a + b) -> MyTagHelper.key = a + b
                         // key="4 + @(a + b)" -> MyTagHelper.key = 4 + @(a + b)
-                        if (isFirstSpan && span.Kind == SpanKind.Transition)
+                        if (isFirstSpan && span.Kind == SpanKindInternal.Transition)
                         {
                             // do nothing.
                         }
@@ -463,15 +467,15 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                         {
                             var spanBuilder = new SpanBuilder(span);
 
-                            if (parentBlock.Type == BlockKind.Expression &&
-                                (spanBuilder.Kind == SpanKind.Transition ||
-                                spanBuilder.Kind == SpanKind.MetaCode))
+                            if (parentBlock.Type == BlockKindInternal.Expression &&
+                                (spanBuilder.Kind == SpanKindInternal.Transition ||
+                                spanBuilder.Kind == SpanKindInternal.MetaCode))
                             {
                                 // Change to a MarkupChunkGenerator so that the '@' \ parenthesis is generated as part of the output.
                                 spanBuilder.ChunkGenerator = new MarkupChunkGenerator();
                             }
 
-                            ConfigureNonStringAttribute(spanBuilder);
+                            ConfigureNonStringAttribute(spanBuilder, result.IsDuplicateAttribute);
 
                             span = spanBuilder.Build();
                         }
@@ -587,7 +591,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             return builder.Build();
         }
 
-        private static SourceLocation GetAttributeNameStartLocation(SyntaxTreeNode node)
+        private static SourceSpan GetAttributeNameLocation(SyntaxTreeNode node, string attributeName)
         {
             Span span;
             var nodeStart = SourceLocation.Undefined;
@@ -613,19 +617,20 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 .OfType<HtmlSymbol>()
                 .First(sym => sym.Type != HtmlSymbolType.WhiteSpace && sym.Type != HtmlSymbolType.NewLine);
 
-            return firstNonWhitespaceSymbol.Start;
+            var location = new SourceSpan(firstNonWhitespaceSymbol.Start, attributeName.Length);
+            return location;
         }
 
-        private static Span CreateMarkupAttribute(SpanBuilder builder, bool isBoundNonStringAttribute)
+        private static Span CreateMarkupAttribute(SpanBuilder builder, TryParseResult result)
         {
             Debug.Assert(builder != null);
 
             // If the attribute was requested by a tag helper but the corresponding property was not a string,
             // then treat its value as code. A non-string value can be any C# value so we need to ensure the
             // SyntaxTreeNode reflects that.
-            if (isBoundNonStringAttribute)
+            if (result.IsBoundNonStringAttribute)
             {
-                ConfigureNonStringAttribute(builder);
+                ConfigureNonStringAttribute(builder, result.IsDuplicateAttribute);
             }
 
             return builder.Build();
@@ -668,23 +673,34 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         }
 
         // Create a TryParseResult for given name, filling in binding details.
-        private static TryParseResult CreateTryParseResult(string name, IEnumerable<TagHelperDescriptor> descriptors)
+        private static TryParseResult CreateTryParseResult(
+            string name,
+            IEnumerable<TagHelperDescriptor> descriptors,
+            HashSet<string> processedBoundAttributeNames)
         {
             var firstBoundAttribute = FindFirstBoundAttribute(name, descriptors);
             var isBoundAttribute = firstBoundAttribute != null;
-            var isBoundNonStringAttribute = isBoundAttribute &&
-                !(firstBoundAttribute.IsStringProperty ||
-                    (TagHelperMatchingConventions.SatisfiesBoundAttributeIndexer(name, firstBoundAttribute) && firstBoundAttribute.IsIndexerStringProperty));
+            var isBoundNonStringAttribute = isBoundAttribute && !firstBoundAttribute.ExpectsStringValue(name);
+            var isBoundBooleanAttribute = isBoundAttribute && firstBoundAttribute.ExpectsBooleanValue(name);
             var isMissingDictionaryKey = isBoundAttribute &&
                 firstBoundAttribute.IndexerNamePrefix != null &&
                 name.Length == firstBoundAttribute.IndexerNamePrefix.Length;
+
+            var isDuplicateAttribute = false;
+            if (isBoundAttribute && !processedBoundAttributeNames.Add(name))
+            {
+                // A bound attribute with the same name has already been processed.
+                isDuplicateAttribute = true;
+            }
 
             return new TryParseResult
             {
                 AttributeName = name,
                 IsBoundAttribute = isBoundAttribute,
                 IsBoundNonStringAttribute = isBoundNonStringAttribute,
+                IsBoundBooleanAttribute = isBoundBooleanAttribute,
                 IsMissingDictionaryKey = isMissingDictionaryKey,
+                IsDuplicateAttribute = isDuplicateAttribute
             };
         }
 
@@ -706,16 +722,26 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                    htmlSymbol.Type == HtmlSymbolType.SingleQuote;
         }
 
-        private static void ConfigureNonStringAttribute(SpanBuilder builder)
+        private static void ConfigureNonStringAttribute(SpanBuilder builder, bool isDuplicateAttribute)
         {
-            builder.Kind = SpanKind.Code;
+            builder.Kind = SpanKindInternal.Code;
             builder.EditHandler = new ImplicitExpressionEditHandler(
                     builder.EditHandler.Tokenizer,
                     CSharpCodeParser.DefaultKeywords,
                     acceptTrailingDot: true)
             {
-                AcceptedCharacters = AcceptedCharacters.AnyExceptNewline
+                AcceptedCharacters = AcceptedCharactersInternal.AnyExceptNewline
             };
+
+            if (!isDuplicateAttribute && builder.ChunkGenerator != SpanChunkGenerator.Null)
+            {
+                // We want to mark the value of non-string bound attributes to be CSharp.
+                // Except in two cases,
+                // 1. Cases when we don't want to render the span. Eg: Transition span '@'.
+                // 2. Cases when it is a duplicate of a bound attribute. This should just be rendered as html.
+
+                builder.ChunkGenerator = new ExpressionChunkGenerator();
+            }
         }
 
         private class TryParseResult
@@ -724,13 +750,17 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
 
             public SyntaxTreeNode AttributeValueNode { get; set; }
 
-            public HtmlAttributeValueStyle AttributeValueStyle { get; set; }
+            public AttributeStructure AttributeStructure { get; set; }
 
             public bool IsBoundAttribute { get; set; }
 
             public bool IsBoundNonStringAttribute { get; set; }
 
+            public bool IsBoundBooleanAttribute { get; set; }
+
             public bool IsMissingDictionaryKey { get; set; }
+
+            public bool IsDuplicateAttribute { get; set; }
         }
     }
 }

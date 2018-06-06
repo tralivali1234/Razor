@@ -3,33 +3,64 @@
 
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace Microsoft.AspNetCore.Razor.Language
 {
-    public sealed class RazorParserOptions
+    public abstract class RazorParserOptions
     {
-        public static RazorParserOptions CreateDefaultOptions()
+        public static RazorParserOptions CreateDefault()
         {
-            return new RazorParserOptions();
+            return new DefaultRazorParserOptions(
+                Array.Empty<DirectiveDescriptor>(),
+                designTime: false,
+                parseLeadingDirectives: false,
+                version: RazorLanguageVersion.Latest);
         }
 
-        private RazorParserOptions()
+        public static RazorParserOptions Create(Action<RazorParserOptionsBuilder> configure)
         {
-            Directives = new List<DirectiveDescriptor>();
-            NamespaceImports = new HashSet<string>(StringComparer.Ordinal) { nameof(System), typeof(Task).Namespace };
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            var builder = new DefaultRazorParserOptionsBuilder(designTime: false, version: RazorLanguageVersion.Latest);
+            configure(builder);
+            var options = builder.Build();
+
+            return options;
         }
 
-        public bool DesignTimeMode { get; set; }
+        public static RazorParserOptions CreateDesignTime(Action<RazorParserOptionsBuilder> configure)
+        {
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
 
-        public int TabSize { get; set; } = 4;
+            var builder = new DefaultRazorParserOptionsBuilder(designTime: true, version: RazorLanguageVersion.Latest);
+            configure(builder);
+            var options = builder.Build();
 
-        public bool IsIndentingWithTabs { get; set; }
+            return options;
+        }
 
-        public bool StopParsingAfterFirstDirective { get; set; }
+        public abstract bool DesignTime { get; }
 
-        public ICollection<DirectiveDescriptor> Directives { get; }
+        public abstract IReadOnlyCollection<DirectiveDescriptor> Directives { get; }
 
-        public HashSet<string> NamespaceImports { get; }
+        /// <summary>
+        /// Gets a value which indicates whether the parser will parse only the leading directives. If <c>true</c>
+        /// the parser will halt at the first HTML content or C# code block. If <c>false</c> the whole document is parsed.
+        /// </summary>
+        /// <remarks>
+        /// Currently setting this option to <c>true</c> will result in only the first line of directives being parsed.
+        /// In a future release this may be updated to include all leading directive content.
+        /// </remarks>
+        public abstract bool ParseLeadingDirectives { get; }
+
+        public virtual RazorLanguageVersion Version { get; } = RazorLanguageVersion.Latest;
+
+        internal virtual RazorParserFeatureFlags FeatureFlags { get; }
     }
 }

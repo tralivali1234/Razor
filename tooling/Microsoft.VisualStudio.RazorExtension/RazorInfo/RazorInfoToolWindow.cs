@@ -4,7 +4,8 @@
 #if RAZOR_EXTENSION_DEVELOPER_MODE
 using System;
 using System.Runtime.InteropServices;
-using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Razor;
+using Microsoft.CodeAnalysis.Razor.ProjectSystem;
 using Microsoft.VisualStudio.ComponentModelHost;
 using Microsoft.VisualStudio.LanguageServices;
 using Microsoft.VisualStudio.LanguageServices.Razor;
@@ -16,16 +17,19 @@ namespace Microsoft.VisualStudio.RazorExtension.RazorInfo
     [Guid("079e9499-d150-40af-8876-3047f7942c2a")]
     public class RazorInfoToolWindow : ToolWindowPane
     {
-        private IRazorEngineAssemblyResolver _assemblyResolver;
-        private IRazorEngineDocumentGenerator _documentGenerator;
-        private IRazorEngineDirectiveResolver _directiveResolver;
-        private ITagHelperResolver _tagHelperResolver;
+        private ProjectSnapshotManager _projectManager;
         private VisualStudioWorkspace _workspace;
 
         public RazorInfoToolWindow() : base(null)
         {
-            this.Caption = "Razor Info";
-            this.Content = new RazorInfoToolWindowControl();
+            Caption = "Razor Info";
+            Content = new RazorInfoToolWindowControl();
+        }
+
+        private RazorInfoViewModel DataContext
+        {
+            get => (RazorInfoViewModel)((RazorInfoToolWindowControl)Content).DataContext;
+            set => ((RazorInfoToolWindowControl)Content).DataContext = value;
         }
 
         protected override void Initialize()
@@ -33,16 +37,22 @@ namespace Microsoft.VisualStudio.RazorExtension.RazorInfo
             base.Initialize();
 
             var componentModel = (IComponentModel)GetService(typeof(SComponentModel));
-
-            _assemblyResolver = componentModel.GetService<IRazorEngineAssemblyResolver>();
-            _documentGenerator = componentModel.GetService<IRazorEngineDocumentGenerator>();
-            _directiveResolver = componentModel.GetService<IRazorEngineDirectiveResolver>();
-            _tagHelperResolver = componentModel.GetService<ITagHelperResolver>();
-
             _workspace = componentModel.GetService<VisualStudioWorkspace>();
-            _workspace.WorkspaceChanged += Workspace_WorkspaceChanged;
 
-            Reset(_workspace.CurrentSolution);
+            _projectManager = _workspace.Services.GetLanguageServices(RazorLanguage.Name).GetRequiredService<ProjectSnapshotManager>();
+            _projectManager.Changed += ProjectManager_Changed;
+
+            DataContext = new RazorInfoViewModel(_workspace, _projectManager, OnException);
+            
+            foreach (var project in _projectManager.Projects)
+            {
+                DataContext.Projects.Add(new ProjectViewModel(project.FilePath));
+            }
+
+            if (DataContext.Projects.Count > 0)
+            {
+                DataContext.SelectedProject = DataContext.Projects[0];
+            }
         }
 
         protected override void Dispose(bool disposing)
@@ -51,28 +61,13 @@ namespace Microsoft.VisualStudio.RazorExtension.RazorInfo
 
             if (disposing)
             {
-                _workspace.WorkspaceChanged -= Workspace_WorkspaceChanged;
+                _projectManager.Changed -= ProjectManager_Changed;
             }
         }
 
-        private void Reset(Solution solution)
+        private void ProjectManager_Changed(object sender, ProjectChangeEventArgs e)
         {
-            if (solution == null)
-            {
-                ((RazorInfoToolWindowControl)this.Content).DataContext = null;
-                return;
-            }
-
-            var viewModel = new RazorInfoViewModel(this, _workspace, _assemblyResolver, _directiveResolver, _tagHelperResolver, _documentGenerator, OnException);
-            foreach (var project in solution.Projects)
-            {
-                if (project.Language == LanguageNames.CSharp)
-                {
-                    viewModel.Projects.Add(new ProjectViewModel(project));
-                }
-            }
-
-            ((RazorInfoToolWindowControl)this.Content).DataContext = viewModel;
+            DataContext.OnChange(e);
         }
 
         private void OnException(Exception ex)
@@ -84,24 +79,6 @@ namespace Microsoft.VisualStudio.RazorExtension.RazorInfo
                 OLEMSGICON.OLEMSGICON_CRITICAL,
                 OLEMSGBUTTON.OLEMSGBUTTON_OK,
                 OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
-        }
-
-        private void Workspace_WorkspaceChanged(object sender, WorkspaceChangeEventArgs e)
-        {
-            switch (e.Kind)
-            {
-                case WorkspaceChangeKind.ProjectAdded:
-                case WorkspaceChangeKind.ProjectChanged:
-                case WorkspaceChangeKind.ProjectReloaded:
-                case WorkspaceChangeKind.ProjectRemoved:
-                case WorkspaceChangeKind.SolutionAdded:
-                case WorkspaceChangeKind.SolutionChanged:
-                case WorkspaceChangeKind.SolutionCleared:
-                case WorkspaceChangeKind.SolutionReloaded:
-                case WorkspaceChangeKind.SolutionRemoved:
-                    Reset(e.NewSolution);
-                    break;
-            }
         }
     }
 }

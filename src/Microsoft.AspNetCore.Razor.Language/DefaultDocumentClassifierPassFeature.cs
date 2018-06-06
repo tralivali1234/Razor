@@ -7,17 +7,15 @@ using Microsoft.AspNetCore.Razor.Language.Intermediate;
 
 namespace Microsoft.AspNetCore.Razor.Language
 {
-    internal class DefaultDocumentClassifierPassFeature : IRazorEngineFeature
+    internal class DefaultDocumentClassifierPassFeature : RazorEngineFeatureBase
     {
-        public RazorEngine Engine { get; set; }
+        public IList<Action<RazorCodeDocument, ClassDeclarationIntermediateNode>> ConfigureClass { get; } =
+            new List<Action<RazorCodeDocument, ClassDeclarationIntermediateNode>>();
 
-        public IList<Action<RazorCodeDocument, ClassDeclarationIRNode>> ConfigureClass { get; } =
-            new List<Action<RazorCodeDocument, ClassDeclarationIRNode>>();
+        public IList<Action<RazorCodeDocument, NamespaceDeclarationIntermediateNode>> ConfigureNamespace { get; } =
+            new List<Action<RazorCodeDocument, NamespaceDeclarationIntermediateNode>>();
 
-        public IList<Action<RazorCodeDocument, NamespaceDeclarationIRNode>> ConfigureNamespace { get; } =
-            new List<Action<RazorCodeDocument, NamespaceDeclarationIRNode>>();
-
-        public IList<Action<RazorCodeDocument, RazorMethodDeclarationIRNode>> ConfigureMethod { get; } =
-            new List<Action<RazorCodeDocument, RazorMethodDeclarationIRNode>>();
+        public IList<Action<RazorCodeDocument, MethodDeclarationIntermediateNode>> ConfigureMethod { get; } =
+            new List<Action<RazorCodeDocument, MethodDeclarationIntermediateNode>>();
     }
 }

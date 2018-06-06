@@ -1,13 +1,14 @@
 Document - 
-    Checksum - 
     NamespaceDeclaration -  - Microsoft.AspNetCore.Razor.Language.IntegrationTests.TestFiles
-        UsingStatement -  - System
-        UsingStatement -  - System.Threading.Tasks
         ClassDeclaration -  - public - TestFiles_IntegrationTests_CodeGenerationIntegrationTest_RemoveTagHelperDirective_DesignTime -  - 
             DesignTimeDirective - 
                 DirectiveToken - (17:0,17 [15] RemoveTagHelperDirective.cshtml) - *, TestAssembly
-            CSharpStatement - 
-                RazorIRToken -  - CSharp - private static System.Object __o = null;
-            RazorMethodDeclaration -  - public - async - System.Threading.Tasks.Task - ExecuteAsync
+            CSharpCode - 
+                IntermediateToken -  - CSharp - #pragma warning disable 0414
+            CSharpCode - 
+                IntermediateToken -  - CSharp - private static System.Object __o = null;
+            CSharpCode - 
+                IntermediateToken -  - CSharp - #pragma warning restore 0414
+            MethodDeclaration -  - public async - System.Threading.Tasks.Task - ExecuteAsync
                 HtmlContent - (32:0,32 [2] RemoveTagHelperDirective.cshtml)
-                    RazorIRToken - (32:0,32 [2] RemoveTagHelperDirective.cshtml) - Html - \n
+                    IntermediateToken - (32:0,32 [2] RemoveTagHelperDirective.cshtml) - Html - \n

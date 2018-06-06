@@ -12,11 +12,21 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
 {
     public static class NamespaceDirective
     {
-        private static readonly char[] Separators = new char[] { '\\', '/' }; 
+        private static readonly char[] Separators = new char[] { '\\', '/' };
 
-        public static readonly DirectiveDescriptor Directive = DirectiveDescriptorBuilder.Create("namespace").AddNamespace().Build();
+        public static readonly DirectiveDescriptor Directive = DirectiveDescriptor.CreateDirective(
+            "namespace",
+            DirectiveKind.SingleLine,
+            builder =>
+            {
+                builder.AddNamespaceToken(
+                    Resources.NamespaceDirective_NamespaceToken_Name,
+                    Resources.NamespaceDirective_NamespaceToken_Description);
+                builder.Usage = DirectiveUsage.FileScopedSinglyOccurring;
+                builder.Description = Resources.NamespaceDirective_Description;
+            });
 
-        public static void Register(IRazorEngineBuilder builder)
+        public static void Register(RazorProjectEngineBuilder builder)
         {
             if (builder == null)
             {
@@ -28,19 +38,19 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
         }
 
         // internal for testing
-        internal class Pass : RazorIRPassBase, IRazorDirectiveClassifierPass
+        internal class Pass : IntermediateNodePassBase, IRazorDirectiveClassifierPass
         {
-            public override void ExecuteCore(RazorCodeDocument codeDocument, DocumentIRNode irDocument)
+            protected override void ExecuteCore(RazorCodeDocument codeDocument, DocumentIntermediateNode documentNode)
             {
-                if (irDocument.DocumentKind != RazorPageDocumentClassifierPass.RazorPageDocumentKind &&
-                    irDocument.DocumentKind != MvcViewDocumentClassifierPass.MvcViewDocumentKind)
+                if (documentNode.DocumentKind != RazorPageDocumentClassifierPass.RazorPageDocumentKind &&
+                    documentNode.DocumentKind != MvcViewDocumentClassifierPass.MvcViewDocumentKind)
                 {
                     // Not a page. Skip.
                     return;
                 }
 
                 var visitor = new Visitor();
-                visitor.Visit(irDocument);
+                visitor.Visit(documentNode);
 
                 var directive = visitor.LastNamespaceDirective;
                 if (directive == null)
@@ -55,22 +65,8 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
                     // No namespace node. Skip.
                     return;
                 }
-                
-                if (TryComputeNamespace(codeDocument.Source.FileName, directive, out var computedNamespace))
-                {
-                    // Beautify the class name since we're using a hierarchy for namespaces.
-                    var @class = visitor.FirstClass;
-                    if (@class != null && irDocument.DocumentKind == RazorPageDocumentClassifierPass.RazorPageDocumentKind)
-                    {
-                        @class.Name = Path.GetFileNameWithoutExtension(codeDocument.Source.FileName) + "_Page";
-                    }
-                    else if (@class != null && irDocument.DocumentKind == MvcViewDocumentClassifierPass.MvcViewDocumentKind)
-                    {
-                        @class.Name = Path.GetFileNameWithoutExtension(codeDocument.Source.FileName) + "_View";
-                    }
-                }
 
-                @namespace.Content = computedNamespace;
+                @namespace.Content = GetNamespace(codeDocument.Source.FilePath, directive);
             }
         }
 
@@ -79,9 +75,9 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
         // This code does a best-effort attempt to compute a namespace 'suffix' - the path difference between
         // where the @namespace directive appears and where the current document is on disk.
         //
-        // In the event that these two source either don't have filenames set or don't follow a coherent hierarchy,
+        // In the event that these two source either don't have FileNames set or don't follow a coherent hierarchy,
         // we will just use the namespace verbatim.
-        internal static bool TryComputeNamespace(string source, DirectiveIRNode directive, out string @namespace)
+        internal static string GetNamespace(string source, DirectiveIntermediateNode directive)
         {
             var directiveSource = NormalizeDirectory(directive.Source?.FilePath);
 
@@ -89,15 +85,13 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
             if (string.IsNullOrEmpty(baseNamespace))
             {
                 // The namespace directive was incomplete.
-                @namespace = string.Empty;
-                return false;
+                return string.Empty;
             }
 
             if (string.IsNullOrEmpty(source) || directiveSource == null)
             {
                 // No sources, can't compute a suffix.
-                @namespace = baseNamespace;
-                return false;
+                return baseNamespace;
             }
 
             // We're specifically using OrdinalIgnoreCase here because Razor treats all paths as case-insensitive.
@@ -105,8 +99,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
                 source.Length <= directiveSource.Length)
             {
                 // The imports are not from the directory hierarchy, can't compute a suffix.
-                @namespace = baseNamespace;
-                return false;
+                return baseNamespace;
             }
 
             // OK so that this point we know that the 'imports' file containing this directive is in the directory
@@ -118,15 +111,14 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
 
             var segments = source.Substring(directiveSource.Length).Split(Separators);
 
-            // Skip the last segment because it's the filename.
+            // Skip the last segment because it's the FileName.
             for (var i = 0; i < segments.Length - 1; i++)
             {
                 builder.Append('.');
-                builder.Append(segments[i]);
+                builder.Append(CSharpIdentifier.SanitizeClassName(segments[i]));
             }
 
-            @namespace = builder.ToString();
-            return true;
+            return builder.ToString();
         }
 
         // We want to normalize the path of the file containing the '@namespace' directive to just the containing
@@ -155,38 +147,38 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
             return path.Substring(0, lastSeparator + 1);
         }
 
-        private class Visitor : RazorIRNodeWalker
+        private class Visitor : IntermediateNodeWalker
         {
-            public ClassDeclarationIRNode FirstClass { get; private set; }
+            public ClassDeclarationIntermediateNode FirstClass { get; private set; }
 
-            public NamespaceDeclarationIRNode FirstNamespace { get; private set; }
+            public NamespaceDeclarationIntermediateNode FirstNamespace { get; private set; }
 
             // We want the last one, so get them all and then .
-            public DirectiveIRNode LastNamespaceDirective { get; private set; }
+            public DirectiveIntermediateNode LastNamespaceDirective { get; private set; }
 
-            public override void VisitNamespace(NamespaceDeclarationIRNode node)
+            public override void VisitNamespaceDeclaration(NamespaceDeclarationIntermediateNode node)
             {
                 if (FirstNamespace == null)
                 {
                     FirstNamespace = node;
                 }
 
-                base.VisitNamespace(node);
+                base.VisitNamespaceDeclaration(node);
             }
 
-            public override void VisitClass(ClassDeclarationIRNode node)
+            public override void VisitClassDeclaration(ClassDeclarationIntermediateNode node)
             {
                 if (FirstClass == null)
                 {
                     FirstClass = node;
                 }
 
-                base.VisitClass(node);
+                base.VisitClassDeclaration(node);
             }
 
-            public override void VisitDirective(DirectiveIRNode node)
+            public override void VisitDirective(DirectiveIntermediateNode node)
             {
-                if (node.Descriptor == Directive)
+                if (node.Directive == Directive)
                 {
                     LastNamespaceDirective = node;
                 }
@@ -194,5 +186,19 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
                 base.VisitDirective(node);
             }
         }
+
+        #region Obsolete
+        [Obsolete("This method is obsolete and will be removed in a future version.")]
+        public static void Register(IRazorEngineBuilder builder)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException();
+            }
+
+            builder.AddDirective(Directive);
+            builder.Features.Add(new Pass());
+        }
+        #endregion
     }
 }

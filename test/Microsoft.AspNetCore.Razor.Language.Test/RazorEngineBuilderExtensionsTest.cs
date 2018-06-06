@@ -7,6 +7,7 @@ using Xunit;
 
 namespace Microsoft.AspNetCore.Razor.Language
 {
+#pragma warning disable CS0618 // Type or member is obsolete
     public class RazorEngineBuilderExtensionsTest
     {
         [Fact]
@@ -19,7 +20,7 @@ namespace Microsoft.AspNetCore.Razor.Language
                 b.Features.Add(expected);
 
                 // Act
-                b.AddDirective(DirectiveDescriptorBuilder.Create("test_directive").Build());
+                b.AddDirective(DirectiveDescriptor.CreateDirective("test", DirectiveKind.SingleLine));
             });
 
             // Assert
@@ -27,7 +28,7 @@ namespace Microsoft.AspNetCore.Razor.Language
             Assert.Same(expected, actual);
 
             var directive = Assert.Single(actual.Directives);
-            Assert.Equal("test_directive", directive.Name);
+            Assert.Equal("test", directive.Directive);
         }
 
         [Fact]
@@ -37,7 +38,7 @@ namespace Microsoft.AspNetCore.Razor.Language
             var engine = RazorEngine.CreateEmpty(b =>
             {
                 // Act
-                b.AddDirective(DirectiveDescriptorBuilder.Create("test_directive").Build());
+                b.AddDirective(DirectiveDescriptor.CreateDirective("test", DirectiveKind.SingleLine));
             });
 
             // Assert
@@ -45,7 +46,7 @@ namespace Microsoft.AspNetCore.Razor.Language
             Assert.IsType<DefaultRazorDirectiveFeature>(actual);
 
             var directive = Assert.Single(actual.Directives);
-            Assert.Equal("test_directive", directive.Name);
+            Assert.Equal("test", directive.Directive);
         }
 
         [Fact]
@@ -89,8 +90,9 @@ namespace Microsoft.AspNetCore.Razor.Language
             Assert.Same(extension, Assert.Single(actual.TargetExtensions));
         }
 
-        private class MyTargetExtension : IRuntimeTargetExtension
+        private class MyTargetExtension : ICodeTargetExtension
         {
         }
     }
+#pragma warning restore CS0618 // Type or member is obsolete
 }

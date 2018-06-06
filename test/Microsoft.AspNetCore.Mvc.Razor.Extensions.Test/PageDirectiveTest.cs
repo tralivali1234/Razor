@@ -1,6 +1,7 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System;
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.AspNetCore.Razor.Language.Intermediate;
 using Xunit;
@@ -10,10 +11,10 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
     public class PageDirectiveTest
     {
         [Fact]
-        public void TryGetPageDirective_CanHandleMalformedPageDirectives()
+        public void TryGetPageDirective_ReturnsTrue_IfPageIsMalformed()
         {
             // Arrange
-            var content = "@page \"";
+            var content = "@page \"some-route-template\" Invalid";
             var sourceDocument = RazorSourceDocument.Create(content, "file");
             var codeDocument = RazorCodeDocument.Create(sourceDocument);
             var engine = CreateEngine();
@@ -24,8 +25,27 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
 
             // Assert
             Assert.True(result);
+            Assert.Equal("some-route-template", pageDirective.RouteTemplate);
+            Assert.NotNull(pageDirective.DirectiveNode);
+        }
+
+        [Fact]
+        public void TryGetPageDirective_ReturnsTrue_IfPageIsImported()
+        {
+            // Arrange
+            var content = "Hello world";
+            var sourceDocument = RazorSourceDocument.Create(content, "file");
+            var importDocument = RazorSourceDocument.Create("@page", "imports.cshtml");
+            var codeDocument = RazorCodeDocument.Create(sourceDocument, new[] { importDocument });
+            var engine = CreateEngine();
+            var irDocument = CreateIRDocument(engine, codeDocument);
+
+            // Act
+            var result = PageDirective.TryGetPageDirective(irDocument, out var pageDirective);
+
+            // Assert
+            Assert.True(result);
             Assert.Null(pageDirective.RouteTemplate);
-            Assert.Null(pageDirective.PageName);
         }
 
         [Fact]
@@ -46,8 +66,8 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
             Assert.Null(pageDirective);
         }
 
-        [Fact(Skip = "https://github.com/aspnet/Razor/issues/1201")]
-        public void TryGetPageDirective_ReturnsFalse_IfPageDoesStartWithDirective()
+        [Fact]
+        public void TryGetPageDirective_ReturnsTrue_IfPageDoesStartWithDirective()
         {
             // Arrange
             var content = "Hello @page";
@@ -60,8 +80,9 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
             var result = PageDirective.TryGetPageDirective(irDocument, out var pageDirective);
 
             // Assert
-            Assert.False(result);
-            Assert.Null(pageDirective);
+            Assert.True(result);
+            Assert.Null(pageDirective.RouteTemplate);
+            Assert.NotNull(pageDirective.DirectiveNode);
         }
 
         [Fact]
@@ -80,7 +101,6 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
             // Assert
             Assert.True(result);
             Assert.Null(pageDirective.RouteTemplate);
-            Assert.Null(pageDirective.PageName);
         }
 
         [Fact]
@@ -99,37 +119,17 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
             // Assert
             Assert.True(result);
             Assert.Equal("some-route-template", pageDirective.RouteTemplate);
-            Assert.Null(pageDirective.PageName);
-        }
-
-        [Fact]
-        public void TryGetPageDirective_ParsesPageName()
-        {
-            // Arrange
-            var content = "@page \"some-route\" \"some name\"";
-            var sourceDocument = RazorSourceDocument.Create(content, "file");
-            var codeDocument = RazorCodeDocument.Create(sourceDocument);
-            var engine = CreateEngine();
-            var irDocument = CreateIRDocument(engine, codeDocument);
-
-            // Act
-            var result = PageDirective.TryGetPageDirective(irDocument, out var pageDirective);
-
-            // Assert
-            Assert.True(result);
-            Assert.Equal("some-route", pageDirective.RouteTemplate);
-            Assert.Equal("some name", pageDirective.PageName);
         }
 
         private RazorEngine CreateEngine()
         {
-            return RazorEngine.Create(b =>
+            return RazorProjectEngine.Create(b =>
             {
                 PageDirective.Register(b);
-            });
+            }).Engine;
         }
 
-        private DocumentIRNode CreateIRDocument(RazorEngine engine, RazorCodeDocument codeDocument)
+        private DocumentIntermediateNode CreateIRDocument(RazorEngine engine, RazorCodeDocument codeDocument)
         {
             for (var i = 0; i < engine.Phases.Count; i++)
             {
@@ -142,7 +142,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
                 }
             }
 
-            return codeDocument.GetIRDocument();
+            return codeDocument.GetDocumentIntermediateNode();
         }
     }
 }

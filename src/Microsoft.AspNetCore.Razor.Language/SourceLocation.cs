@@ -71,6 +71,20 @@ namespace Microsoft.AspNetCore.Razor.Language
         /// <remarks>Set property is only accessible for deserialization purposes.</remarks>
         public int CharacterIndex { get; set; }
 
+        /// <summary>
+        /// Creates a new instance of <see cref="SourceLocation"/> from the provided span.
+        /// </summary>
+        /// <param name="span">
+        /// The souce span. If <c>null</c>, <see cref="SourceLocation.Undefined"/> will be returned.
+        /// </param>
+        /// <remarks>A <see cref="SourceLocation"/> that corresponds to the beginning of the span.</remarks>
+        public static SourceLocation FromSpan(SourceSpan? span)
+        {
+            return span == null ? 
+                SourceLocation.Undefined : 
+                new SourceLocation(span.Value.FilePath, span.Value.AbsoluteIndex, span.Value.LineIndex, span.Value.CharacterIndex);
+        }
+
         /// <inheritdoc />
         public override string ToString()
         {
@@ -102,9 +116,10 @@ namespace Microsoft.AspNetCore.Razor.Language
         /// <inheritdoc />
         public bool Equals(SourceLocation other)
         {
-            // LineIndex and CharacterIndex can be calculated from AbsoluteIndex and the document content.
             return string.Equals(FilePath, other.FilePath, StringComparison.Ordinal) &&
-                AbsoluteIndex == other.AbsoluteIndex;
+                AbsoluteIndex == other.AbsoluteIndex &&
+                LineIndex == other.LineIndex &&
+                CharacterIndex == other.CharacterIndex;
         }
 
         public static bool operator==(SourceLocation left, SourceLocation right)

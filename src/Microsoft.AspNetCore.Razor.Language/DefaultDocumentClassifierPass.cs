@@ -8,20 +8,20 @@ namespace Microsoft.AspNetCore.Razor.Language
 {
     internal class DefaultDocumentClassifierPass : DocumentClassifierPassBase
     {
-        public override int Order => RazorIRPass.DefaultFeatureOrder;
+        public override int Order => DefaultFeatureOrder;
 
         protected override string DocumentKind => "default";
 
-        protected override bool IsMatch(RazorCodeDocument codeDocument, DocumentIRNode irDocument)
+        protected override bool IsMatch(RazorCodeDocument codeDocument, DocumentIntermediateNode documentNode)
         {
             return true;
         }
 
         protected override void OnDocumentStructureCreated(
             RazorCodeDocument codeDocument,
-            NamespaceDeclarationIRNode @namespace,
-            ClassDeclarationIRNode @class,
-            RazorMethodDeclarationIRNode method)
+            NamespaceDeclarationIntermediateNode @namespace,
+            ClassDeclarationIntermediateNode @class,
+            MethodDeclarationIntermediateNode method)
         {
             var configuration = Engine.Features.OfType<DefaultDocumentClassifierPassFeature>().FirstOrDefault();
             if (configuration != null)

@@ -1,27 +1,21 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using System.Linq;
-
 namespace Microsoft.AspNetCore.Razor.Language
 {
+#pragma warning disable CS0618 // Type or member is obsolete
     internal class DefaultRazorParsingPhase : RazorEnginePhaseBase, IRazorParsingPhase
     {
-        private IRazorParserOptionsFeature[] _parserOptionsCallbacks;
+        private IRazorParserOptionsFeature _optionsFeature;
 
         protected override void OnIntialized()
         {
-            _parserOptionsCallbacks = Engine.Features.OfType<IRazorParserOptionsFeature>().ToArray();
+            _optionsFeature = GetRequiredFeature<IRazorParserOptionsFeature>();
         }
 
         protected override void ExecuteCore(RazorCodeDocument codeDocument)
         {
-            var options = RazorParserOptions.CreateDefaultOptions();
-            for (var i = 0; i < _parserOptionsCallbacks.Length; i++)
-            {
-                _parserOptionsCallbacks[i].Configure(options);
-            }
-
+            var options = codeDocument.GetParserOptions() ??_optionsFeature.GetOptions();
             var syntaxTree = RazorSyntaxTree.Parse(codeDocument.Source, options);
             codeDocument.SetSyntaxTree(syntaxTree);
 
@@ -33,4 +27,5 @@ namespace Microsoft.AspNetCore.Razor.Language
             codeDocument.SetImportSyntaxTrees(importSyntaxTrees);
         }
     }
+#pragma warning restore CS0618 // Type or member is obsolete
 }

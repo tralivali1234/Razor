@@ -4,7 +4,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.AspNetCore.Razor.Language.Intermediate;
 using Microsoft.AspNetCore.Razor.Language.Legacy;
@@ -25,11 +24,11 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
             var tagHelpers = new[]
             {
                 TagHelperDescriptorBuilder.Create("TestTagHelper", "TestAssembly")
-                    .BindAttribute(attribute =>
+                    .BoundAttributeDescriptor(attribute =>
                         attribute
                             .Name("Foo")
                             .TypeName("System.Int32"))
-                    .TagMatchingRule(rule =>
+                    .TagMatchingRuleDescriptor(rule =>
                         rule.RequireTagName("p"))
                     .Build()
             };
@@ -47,10 +46,10 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
 
             // Assert
             var tagHelper = FindTagHelperNode(irDocument);
-            var setProperty = tagHelper.Children.OfType<SetTagHelperPropertyIRNode>().Single();
+            var setProperty = tagHelper.Children.OfType<TagHelperPropertyIntermediateNode>().Single();
 
-            var html = Assert.IsType<HtmlContentIRNode>(Assert.Single(setProperty.Children));
-            var token = Assert.IsType<RazorIRToken>(Assert.Single(html.Children));
+            var token = Assert.IsType<IntermediateToken>(Assert.Single(setProperty.Children));
+            Assert.True(token.IsCSharp);
             Assert.Equal("17", token.Content);
         }
 
@@ -66,11 +65,11 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
             var tagHelpers = new[]
             {
                 TagHelperDescriptorBuilder.Create("TestTagHelper", "TestAssembly")
-                    .BindAttribute(attribute =>
+                    .BoundAttributeDescriptor(attribute =>
                         attribute
                             .Name("Foo")
-                            .TypeName(typeof(ModelExpression).FullName))
-                    .TagMatchingRule(rule =>
+                            .TypeName("Microsoft.AspNetCore.Mvc.ViewFeatures.ModelExpression"))
+                    .TagMatchingRuleDescriptor(rule =>
                         rule.RequireTagName("p"))
                     .Build()
             };
@@ -88,13 +87,13 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
 
             // Assert
             var tagHelper = FindTagHelperNode(irDocument);
-            var setProperty = tagHelper.Children.OfType<SetTagHelperPropertyIRNode>().Single();
+            var setProperty = tagHelper.Children.OfType<TagHelperPropertyIntermediateNode>().Single();
 
-            var expression = Assert.IsType<CSharpExpressionIRNode>(Assert.Single(setProperty.Children));
+            var expression = Assert.IsType<CSharpExpressionIntermediateNode>(Assert.Single(setProperty.Children));
             Assert.Equal("ModelExpressionProvider.CreateModelExpression(ViewData, __model => __model.Bar)", GetCSharpContent(expression));
 
-            var originalNode = Assert.IsType<RazorIRToken>(expression.Children[2]);
-            Assert.Equal(RazorIRToken.TokenKind.CSharp, originalNode.Kind);
+            var originalNode = Assert.IsType<IntermediateToken>(expression.Children[2]);
+            Assert.Equal(TokenKind.CSharp, originalNode.Kind);
             Assert.Equal("Bar", originalNode.Content);
             Assert.Equal(new SourceSpan("test.cshtml", 51, 1, 8, 3), originalNode.Source.Value);
         }
@@ -111,11 +110,11 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
             var tagHelpers = new[]
             {
                 TagHelperDescriptorBuilder.Create("TestTagHelper", "TestAssembly")
-                    .BindAttribute(attribute =>
+                    .BoundAttributeDescriptor(attribute =>
                         attribute
                             .Name("Foo")
-                            .TypeName(typeof(ModelExpression).FullName))
-                    .TagMatchingRule(rule =>
+                            .TypeName("Microsoft.AspNetCore.Mvc.ViewFeatures.ModelExpression"))
+                    .TagMatchingRuleDescriptor(rule =>
                         rule.RequireTagName("p"))
                     .Build()
             };
@@ -133,13 +132,13 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
 
             // Assert
             var tagHelper = FindTagHelperNode(irDocument);
-            var setProperty = tagHelper.Children.OfType<SetTagHelperPropertyIRNode>().Single();
+            var setProperty = tagHelper.Children.OfType<TagHelperPropertyIntermediateNode>().Single();
 
-            var expression = Assert.IsType<CSharpExpressionIRNode>(Assert.Single(setProperty.Children));
+            var expression = Assert.IsType<CSharpExpressionIntermediateNode>(Assert.Single(setProperty.Children));
             Assert.Equal("ModelExpressionProvider.CreateModelExpression(ViewData, __model => Bar)", GetCSharpContent(expression));
 
-            var originalNode = Assert.IsType<RazorIRToken>(expression.Children[1]);
-            Assert.Equal(RazorIRToken.TokenKind.CSharp, originalNode.Kind);
+            var originalNode = Assert.IsType<IntermediateToken>(expression.Children[1]);
+            Assert.Equal(TokenKind.CSharp, originalNode.Kind);
             Assert.Equal("Bar", originalNode.Content);
             Assert.Equal(new SourceSpan("test.cshtml", 52, 1, 9, 3), originalNode.Source.Value);
         }
@@ -152,13 +151,13 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
 
         private RazorEngine CreateEngine(params TagHelperDescriptor[] tagHelpers)
         {
-            return RazorEngine.Create(b =>
+            return RazorProjectEngine.Create(b =>
             {
-                b.Features.Add(new TagHelperFeature(tagHelpers));
-            });
+                b.Features.Add(new TestTagHelperFeature(tagHelpers));
+            }).Engine;
         }
 
-        private DocumentIRNode CreateIRDocument(RazorEngine engine, RazorCodeDocument codeDocument)
+        private DocumentIntermediateNode CreateIRDocument(RazorEngine engine, RazorCodeDocument codeDocument)
         {
             for (var i = 0; i < engine.Phases.Count; i++)
             {
@@ -171,23 +170,23 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
                 }
             }
 
-            return codeDocument.GetIRDocument();
+            return codeDocument.GetDocumentIntermediateNode();
         }
 
-        private TagHelperIRNode FindTagHelperNode(RazorIRNode node)
+        private TagHelperIntermediateNode FindTagHelperNode(IntermediateNode node)
         {
             var visitor = new TagHelperNodeVisitor();
             visitor.Visit(node);
             return visitor.Node;
         }
 
-        private string GetCSharpContent(RazorIRNode node)
+        private string GetCSharpContent(IntermediateNode node)
         {
             var builder = new StringBuilder();
             for (var i = 0; i < node.Children.Count; i++)
             {
-                var child = node.Children[i] as RazorIRToken;
-                if (child.Kind == RazorIRToken.TokenKind.CSharp)
+                var child = node.Children[i] as IntermediateToken;
+                if (child.Kind == TokenKind.CSharp)
                 {
                     builder.Append(child.Content);
                 }
@@ -196,40 +195,13 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
             return builder.ToString();
         }
 
-        private class TagHelperNodeVisitor : RazorIRNodeWalker
+        private class TagHelperNodeVisitor : IntermediateNodeWalker
         {
-            public TagHelperIRNode Node { get; set; }
+            public TagHelperIntermediateNode Node { get; set; }
 
-            public override void VisitTagHelper(TagHelperIRNode node)
+            public override void VisitTagHelper(TagHelperIntermediateNode node)
             {
                 Node = node;
-            }
-        }
-
-        private class TagHelperFeature : ITagHelperFeature
-        {
-            public TagHelperFeature(TagHelperDescriptor[] tagHelpers)
-            {
-                Resolver = new TagHelperDescriptorResolver(tagHelpers);
-            }
-
-            public RazorEngine Engine { get; set; }
-
-            public ITagHelperDescriptorResolver Resolver { get; }
-        }
-
-        private class TagHelperDescriptorResolver : ITagHelperDescriptorResolver
-        {
-            public TagHelperDescriptorResolver(TagHelperDescriptor[] tagHelpers)
-            {
-                TagHelpers = tagHelpers;
-            }
-
-            public TagHelperDescriptor[] TagHelpers { get; }
-
-            public IEnumerable<TagHelperDescriptor> Resolve(IList<RazorDiagnostic> errors)
-            {
-                return TagHelpers;
             }
         }
     }

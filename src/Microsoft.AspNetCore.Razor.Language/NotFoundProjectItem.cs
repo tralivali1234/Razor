@@ -9,7 +9,7 @@ namespace Microsoft.AspNetCore.Razor.Language
     /// <summary>
     /// A <see cref="RazorProjectItem"/> that does not exist.
     /// </summary>
-    public class NotFoundProjectItem : RazorProjectItem
+    internal class NotFoundProjectItem : RazorProjectItem
     {
         /// <summary>
         /// Initializes a new instance of <see cref="NotFoundProjectItem"/>.
@@ -19,14 +19,14 @@ namespace Microsoft.AspNetCore.Razor.Language
         public NotFoundProjectItem(string basePath, string path)
         {
             BasePath = basePath;
-            Path = path;
+            FilePath = path;
         }
 
         /// <inheritdoc />
         public override string BasePath { get; }
 
         /// <inheritdoc />
-        public override string Path { get; }
+        public override string FilePath { get; }
 
         /// <inheritdoc />
         public override bool Exists => false;

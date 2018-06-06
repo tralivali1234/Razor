@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 
@@ -9,29 +10,41 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
 {
     internal partial class ParserContext
     {
-        public ParserContext(ITextDocument source, RazorParserOptions options)
+        public ParserContext(RazorSourceDocument source, RazorParserOptions options)
         {
             if (source == null)
             {
                 throw new ArgumentNullException(nameof(source));
             }
 
-            Source = source;
-            DesignTimeMode = options.DesignTimeMode;
-            StopParsingAfterFirstDirective = options.StopParsingAfterFirstDirective;
+            SourceDocument = source;
+            var chars = new char[source.Length];
+            source.CopyTo(0, chars, 0, source.Length);
+
+            Source = new SeekableTextReader(chars, source.FilePath);
+            DesignTimeMode = options.DesignTime;
+            FeatureFlags = options.FeatureFlags;
+            ParseLeadingDirectives = options.ParseLeadingDirectives;
             Builder = new SyntaxTreeBuilder();
             ErrorSink = new ErrorSink();
+            SeenDirectives = new HashSet<string>(StringComparer.Ordinal);
         }
 
         public SyntaxTreeBuilder Builder { get; }
 
-        public ErrorSink ErrorSink { get; }
+        public ErrorSink ErrorSink { get; set; }
+
+        public RazorParserFeatureFlags FeatureFlags { get; }
+
+        public HashSet<string> SeenDirectives { get; }
 
         public ITextDocument Source { get; }
 
+        public RazorSourceDocument SourceDocument { get; }
+
         public bool DesignTimeMode { get; }
 
-        public bool StopParsingAfterFirstDirective { get; }
+        public bool ParseLeadingDirectives { get; }
 
         public bool WhiteSpaceIsSignificantToAncestorBlock { get; set; }
 
@@ -46,7 +59,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
     // Debug Helpers
 
 #if DEBUG
-    [DebuggerDisplay("{Unparsed}")]
+    [DebuggerDisplay("{" + nameof(DebuggerToString) + "(),nq}")]
     internal partial class ParserContext
     {
         private const int InfiniteLoopCountThreshold = 1000;
@@ -87,6 +100,11 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             }
             _infiniteLoopGuardLocation = Source.Location;
             return false;
+        }
+
+        private string DebuggerToString()
+        {
+            return Unparsed;
         }
     }
 #endif

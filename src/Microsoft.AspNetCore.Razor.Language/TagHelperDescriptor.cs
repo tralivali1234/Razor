@@ -20,13 +20,13 @@ namespace Microsoft.AspNetCore.Razor.Language
 
         public string Name { get; protected set; }
 
-        public IEnumerable<TagMatchingRule> TagMatchingRules { get; protected set; }
+        public IReadOnlyList<TagMatchingRuleDescriptor> TagMatchingRules { get; protected set; }
 
         public string AssemblyName { get; protected set; }
 
-        public IEnumerable<BoundAttributeDescriptor> BoundAttributes { get; protected set; }
+        public IReadOnlyList<BoundAttributeDescriptor> BoundAttributes { get; protected set; }
 
-        public IEnumerable<string> AllowedChildTags { get; protected set; }
+        public IReadOnlyList<AllowedChildTagDescriptor> AllowedChildTags { get; protected set; }
 
         public string Documentation { get; protected set; }
 
@@ -38,14 +38,14 @@ namespace Microsoft.AspNetCore.Razor.Language
 
         public IReadOnlyDictionary<string, string> Metadata { get; protected set; }
 
-        public bool HasAnyErrors
+        public bool HasErrors
         {
             get
             {
                 var allDiagnostics = GetAllDiagnostics();
-                var anyErrors = allDiagnostics.Any(diagnostic => diagnostic.Severity == RazorDiagnosticSeverity.Error);
+                var errors = allDiagnostics.Any(diagnostic => diagnostic.Severity == RazorDiagnosticSeverity.Error);
 
-                return anyErrors;
+                return errors;
             }
         }
 
@@ -53,13 +53,22 @@ namespace Microsoft.AspNetCore.Razor.Language
         {
             if (_allDiagnostics == null)
             {
+                var allowedChildTagDiagnostics = AllowedChildTags.SelectMany(childTag => childTag.Diagnostics);
                 var attributeDiagnostics = BoundAttributes.SelectMany(attribute => attribute.Diagnostics);
                 var ruleDiagnostics = TagMatchingRules.SelectMany(rule => rule.GetAllDiagnostics());
-                var combinedDiagnostics = attributeDiagnostics.Concat(ruleDiagnostics).Concat(Diagnostics);
+                var combinedDiagnostics = allowedChildTagDiagnostics
+                    .Concat(attributeDiagnostics)
+                    .Concat(ruleDiagnostics)
+                    .Concat(Diagnostics);
                 _allDiagnostics = combinedDiagnostics.ToArray();
             }
 
             return _allDiagnostics;
+        }
+
+        public override string ToString()
+        {
+            return DisplayName ?? base.ToString();
         }
 
         public bool Equals(TagHelperDescriptor other)

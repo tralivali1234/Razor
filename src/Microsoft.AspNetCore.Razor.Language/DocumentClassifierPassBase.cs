@@ -8,64 +8,62 @@ using Microsoft.AspNetCore.Razor.Language.Intermediate;
 
 namespace Microsoft.AspNetCore.Razor.Language
 {
-    public abstract class DocumentClassifierPassBase : RazorIRPassBase, IRazorDocumentClassifierPass
+    public abstract class DocumentClassifierPassBase : IntermediateNodePassBase, IRazorDocumentClassifierPass
     {
-        private static readonly IRuntimeTargetExtension[] EmptyExtensionArray = new IRuntimeTargetExtension[0];
+        private static readonly ICodeTargetExtension[] EmptyExtensionArray = new ICodeTargetExtension[0];
+        private ICodeTargetExtension[] _targetExtensions;
 
         protected abstract string DocumentKind { get; }
 
-        protected IRuntimeTargetExtension[] TargetExtensions { get; private set; }
-
-        protected override void OnIntialized()
+        protected override void OnInitialized()
         {
             var feature = Engine.Features.OfType<IRazorTargetExtensionFeature>();
-
-            TargetExtensions = feature.FirstOrDefault()?.TargetExtensions.ToArray() ?? EmptyExtensionArray;
+            _targetExtensions = feature.FirstOrDefault()?.TargetExtensions.ToArray() ?? EmptyExtensionArray;
         }
 
-        public sealed override void ExecuteCore(RazorCodeDocument codeDocument, DocumentIRNode irDocument)
+        protected sealed override void ExecuteCore(RazorCodeDocument codeDocument, DocumentIntermediateNode documentNode)
         {
-            if (irDocument.DocumentKind != null)
+            if (documentNode.DocumentKind != null)
             {
                 return;
             }
 
-            if (!IsMatch(codeDocument, irDocument))
+            if (!IsMatch(codeDocument, documentNode))
             {
                 return;
             }
 
-            irDocument.DocumentKind = DocumentKind;
-            irDocument.Target = CreateTarget(codeDocument, irDocument.Options);
+            documentNode.DocumentKind = DocumentKind;
+            documentNode.Target = CreateTarget(codeDocument, documentNode.Options);
 
-            Rewrite(codeDocument, irDocument);
+            Rewrite(codeDocument, documentNode);
         }
 
-        private void Rewrite(RazorCodeDocument codeDocument, DocumentIRNode irDocument)
+        private void Rewrite(RazorCodeDocument codeDocument, DocumentIntermediateNode documentNode)
         {
             // Rewrite the document from a flat structure to use a sensible default structure,
             // a namespace and class declaration with a single 'razor' method.
-            var children = new List<RazorIRNode>(irDocument.Children);
-            irDocument.Children.Clear();
+            var children = new List<IntermediateNode>(documentNode.Children);
+            documentNode.Children.Clear();
 
-            var @namespace = new NamespaceDeclarationIRNode();
+            var @namespace = new NamespaceDeclarationIntermediateNode();
             @namespace.Annotations[CommonAnnotations.PrimaryNamespace] = CommonAnnotations.PrimaryNamespace;
 
-            var @class = new ClassDeclarationIRNode();
+            var @class = new ClassDeclarationIntermediateNode();
             @class.Annotations[CommonAnnotations.PrimaryClass] = CommonAnnotations.PrimaryClass;
 
-            var method = new RazorMethodDeclarationIRNode();
+            var method = new MethodDeclarationIntermediateNode();
             method.Annotations[CommonAnnotations.PrimaryMethod] = CommonAnnotations.PrimaryMethod;
 
-            var documentBuilder = RazorIRBuilder.Create(irDocument);
+            var documentBuilder = IntermediateNodeBuilder.Create(documentNode);
 
-            var namespaceBuilder = RazorIRBuilder.Create(documentBuilder.Current);
+            var namespaceBuilder = IntermediateNodeBuilder.Create(documentBuilder.Current);
             namespaceBuilder.Push(@namespace);
 
-            var classBuilder = RazorIRBuilder.Create(namespaceBuilder.Current);
+            var classBuilder = IntermediateNodeBuilder.Create(namespaceBuilder.Current);
             classBuilder.Push(@class);
 
-            var methodBuilder = RazorIRBuilder.Create(classBuilder.Current);
+            var methodBuilder = IntermediateNodeBuilder.Create(classBuilder.Current);
             methodBuilder.Push(method);
 
             var visitor = new Visitor(documentBuilder, namespaceBuilder, classBuilder, methodBuilder);
@@ -80,43 +78,43 @@ namespace Microsoft.AspNetCore.Razor.Language
             OnDocumentStructureCreated(codeDocument, @namespace, @class, method);
         }
 
-        protected abstract bool IsMatch(RazorCodeDocument codeDocument, DocumentIRNode irDocument);
+        protected abstract bool IsMatch(RazorCodeDocument codeDocument, DocumentIntermediateNode documentNode);
 
-        private RuntimeTarget CreateTarget(RazorCodeDocument codeDocument, RazorParserOptions options)
+        private CodeTarget CreateTarget(RazorCodeDocument codeDocument, RazorCodeGenerationOptions options)
         {
-            return RuntimeTarget.CreateDefault(codeDocument, options, (builder) =>
+            return CodeTarget.CreateDefault(codeDocument, options, (builder) =>
             {
-                for (var i = 0; i < TargetExtensions.Length; i++)
+                for (var i = 0; i < _targetExtensions.Length; i++)
                 {
-                    builder.TargetExtensions.Add(TargetExtensions[i]);
+                    builder.TargetExtensions.Add(_targetExtensions[i]);
                 }
 
                 ConfigureTarget(builder);
             });
         }
 
-        protected virtual void ConfigureTarget(IRuntimeTargetBuilder builder)
+        protected virtual void ConfigureTarget(CodeTargetBuilder builder)
         {
             // Intentionally empty.
         }
 
         protected virtual void OnDocumentStructureCreated(
             RazorCodeDocument codeDocument,
-            NamespaceDeclarationIRNode @namespace,
-            ClassDeclarationIRNode @class,
-            RazorMethodDeclarationIRNode @method)
+            NamespaceDeclarationIntermediateNode @namespace,
+            ClassDeclarationIntermediateNode @class,
+            MethodDeclarationIntermediateNode @method)
         {
             // Intentionally empty.
         }
 
-        private class Visitor : RazorIRNodeVisitor
+        private class Visitor : IntermediateNodeVisitor
         {
-            private readonly RazorIRBuilder _document;
-            private readonly RazorIRBuilder _namespace;
-            private readonly RazorIRBuilder _class;
-            private readonly RazorIRBuilder _method;
+            private readonly IntermediateNodeBuilder _document;
+            private readonly IntermediateNodeBuilder _namespace;
+            private readonly IntermediateNodeBuilder _class;
+            private readonly IntermediateNodeBuilder _method;
 
-            public Visitor(RazorIRBuilder document, RazorIRBuilder @namespace, RazorIRBuilder @class, RazorIRBuilder method)
+            public Visitor(IntermediateNodeBuilder document, IntermediateNodeBuilder @namespace, IntermediateNodeBuilder @class, IntermediateNodeBuilder method)
             {
                 _document = document;
                 _namespace = @namespace;
@@ -124,23 +122,30 @@ namespace Microsoft.AspNetCore.Razor.Language
                 _method = method;
             }
 
-            public override void VisitChecksum(ChecksumIRNode node)
+            public override void VisitUsingDirective(UsingDirectiveIntermediateNode node)
             {
-                _document.Insert(0, node);
+                var children = _namespace.Current.Children;
+                var i = children.Count - 1;
+                for (; i >= 0; i--)
+                {
+                    var child = children[i];
+                    if (child is UsingDirectiveIntermediateNode)
+                    {
+                        break;
+                    }
+                }
+
+                _namespace.Insert(i + 1, node);
             }
 
-            public override void VisitUsingStatement(UsingStatementIRNode node)
+            public override void VisitDefault(IntermediateNode node)
             {
-                _namespace.AddAfter<UsingStatementIRNode>(node);
-            }
+                if (node is MemberDeclarationIntermediateNode)
+                {
+                    _class.Add(node);
+                    return;
+                }
 
-            public override void VisitDeclareTagHelperFields(DeclareTagHelperFieldsIRNode node)
-            {
-                _class.Insert(0, node);
-            }
-
-            public override void VisitDefault(RazorIRNode node)
-            {
                 _method.Add(node);
             }
         }

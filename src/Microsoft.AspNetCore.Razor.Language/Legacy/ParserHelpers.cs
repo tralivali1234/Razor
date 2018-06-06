@@ -10,19 +10,23 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
 {
     internal static class ParserHelpers
     {
-        public static bool IsNewLine(char value)
+        public static char[] NewLineCharacters = new[]
         {
-            return value == '\r' // Carriage return
-                || value == '\n' // Linefeed
-                || value == '\u0085' // Next Line
-                || value == '\u2028' // Line separator
-                || value == '\u2029'; // Paragraph separator
-        }
+            '\r', // Carriage return
+            '\n', // Linefeed
+            '\u0085', // Next Line
+            '\u2028', // Line separator
+            '\u2029' // Paragraph separator
+        };
+
+        public static bool IsNewLine(char value) => Array.IndexOf<char>(NewLineCharacters, value) != -1;
 
         public static bool IsNewLine(string value)
         {
+            // We want to handle both LF and CRLF regardless of the platform.
+            // We explicitly check for CRLF and IsNewLine() should return true for LF.
             return (value.Length == 1 && (IsNewLine(value[0]))) ||
-                   (string.Equals(value, Environment.NewLine, StringComparison.Ordinal));
+                   (string.Equals(value, "\r\n", StringComparison.Ordinal));
         }
 
         public static bool IsIdentifier(string value)

@@ -1,6 +1,7 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System;
 using Microsoft.AspNetCore.Razor.Language.Intermediate;
 using Xunit;
 
@@ -56,16 +57,32 @@ namespace Microsoft.AspNetCore.Razor.Language
         }
 
         [Fact]
+        public void GetAndSetTagHelpers_ReturnsTagHelpers()
+        {
+            // Arrange
+            var codeDocument = TestRazorCodeDocument.CreateEmpty();
+
+            var expected = new[] { TagHelperDescriptorBuilder.Create("TestTagHelper", "TestAssembly").Build() };
+            codeDocument.SetTagHelpers(expected);
+
+            // Act
+            var actual = codeDocument.GetTagHelpers();
+
+            // Assert
+            Assert.Same(expected, actual);
+        }
+
+        [Fact]
         public void GetIRDocument_ReturnsIRDocument()
         {
             // Arrange
             var codeDocument = TestRazorCodeDocument.CreateEmpty();
 
-            var expected = RazorIRBuilder.Document().Build();
-            codeDocument.Items[typeof(DocumentIRNode)] = expected;
+            var expected = new DocumentIntermediateNode();
+            codeDocument.Items[typeof(DocumentIntermediateNode)] = expected;
 
             // Act
-            var actual = codeDocument.GetIRDocument();
+            var actual = codeDocument.GetDocumentIntermediateNode();
 
             // Assert
             Assert.Same(expected, actual);
@@ -77,13 +94,13 @@ namespace Microsoft.AspNetCore.Razor.Language
             // Arrange
             var codeDocument = TestRazorCodeDocument.CreateEmpty();
 
-            var expected = RazorIRBuilder.Document().Build();
+            var expected = new DocumentIntermediateNode();
 
             // Act
-            codeDocument.SetIRDocument((DocumentIRNode)expected);
+            codeDocument.SetDocumentIntermediateNode((DocumentIntermediateNode)expected);
 
             // Assert
-            Assert.Same(expected, codeDocument.Items[typeof(DocumentIRNode)]);
+            Assert.Same(expected, codeDocument.Items[typeof(DocumentIntermediateNode)]);
         }
 
         [Fact]
@@ -92,7 +109,7 @@ namespace Microsoft.AspNetCore.Razor.Language
             // Arrange
             var codeDocument = TestRazorCodeDocument.CreateEmpty();
 
-            var expected = new RazorCSharpDocument();
+            var expected = RazorCSharpDocument.Create("", RazorCodeGenerationOptions.CreateDefault(), Array.Empty<RazorDiagnostic>());
             codeDocument.Items[typeof(RazorCSharpDocument)] = expected;
 
             // Act
@@ -108,7 +125,7 @@ namespace Microsoft.AspNetCore.Razor.Language
             // Arrange
             var codeDocument = TestRazorCodeDocument.CreateEmpty();
 
-            var expected = new RazorCSharpDocument();
+            var expected = RazorCSharpDocument.Create("", RazorCodeGenerationOptions.CreateDefault(), Array.Empty<RazorDiagnostic>());
 
             // Act
             codeDocument.SetCSharpDocument(expected);
@@ -146,6 +163,68 @@ namespace Microsoft.AspNetCore.Razor.Language
 
             // Assert
             Assert.Same(expected, codeDocument.Items[typeof(TagHelperDocumentContext)]);
+        }
+
+        [Fact]
+        public void GetParserOptions_ReturnsSyntaxTree()
+        {
+            // Arrange
+            var codeDocument = TestRazorCodeDocument.CreateEmpty();
+
+            var expected = RazorParserOptions.CreateDefault();
+            codeDocument.Items[typeof(RazorParserOptions)] = expected;
+
+            // Act
+            var actual = codeDocument.GetParserOptions();
+
+            // Assert
+            Assert.Same(expected, actual);
+        }
+
+        [Fact]
+        public void SetParserOptions_SetsSyntaxTree()
+        {
+            // Arrange
+            var codeDocument = TestRazorCodeDocument.CreateEmpty();
+
+            var expected = RazorParserOptions.CreateDefault();
+
+            // Act
+            codeDocument.SetParserOptions(expected);
+
+            // Assert
+            Assert.Same(expected, codeDocument.Items[typeof(RazorParserOptions)]);
+        }
+
+        [Fact]
+        public void GetCodeGenerationOptions_ReturnsSyntaxTree()
+        {
+            // Arrange
+            var codeDocument = TestRazorCodeDocument.CreateEmpty();
+
+            var expected = RazorCodeGenerationOptions.CreateDefault();
+            codeDocument.Items[typeof(RazorCodeGenerationOptions)] = expected;
+
+            // Act
+            var actual = codeDocument.GetCodeGenerationOptions();
+
+            // Assert
+            Assert.Same(expected, actual);
+        }
+
+        [Fact]
+        public void SetCodeGenerationOptions_SetsSyntaxTree()
+        {
+            // Arrange
+            var codeDocument = TestRazorCodeDocument.CreateEmpty();
+
+            var expected = RazorCodeGenerationOptions.CreateDefault();
+
+            // Act
+            codeDocument.SetCodeGenerationOptions(expected);
+
+            // Assert
+            Assert.Same(expected, codeDocument.Items[typeof(RazorCodeGenerationOptions)]);
         }
     }
 }

@@ -1,263 +1,77 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
-
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using Microsoft.AspNetCore.Razor.Language.Legacy;
 
 namespace Microsoft.AspNetCore.Razor.Language
 {
-    public sealed class TagHelperDescriptorBuilder
+    public abstract class TagHelperDescriptorBuilder
     {
-        public static readonly string DescriptorKind = "ITagHelper";
-        public static readonly string TypeNameKey = "ITagHelper.TypeName";
-
-        private static ICollection<char> InvalidNonWhitespaceAllowedChildCharacters { get; } = new HashSet<char>(
-            new[] { '@', '!', '<', '/', '?', '[', '>', ']', '=', '"', '\'', '*' });
-
-        private string _documentation;
-        private string _tagOutputHint;
-        private HashSet<string> _allowedChildTags;
-        private HashSet<BoundAttributeDescriptor> _attributeDescriptors;
-        private HashSet<TagMatchingRule> _tagMatchingRules;
-        private readonly string _assemblyName;
-        private readonly string _typeName;
-        private readonly Dictionary<string, string> _metadata;
-        private HashSet<RazorDiagnostic> _diagnostics;
-
-        private TagHelperDescriptorBuilder(string typeName, string assemblyName)
+        public static TagHelperDescriptorBuilder Create(string name, string assemblyName)
         {
-            _typeName = typeName;
-            _assemblyName = assemblyName;
-            _metadata = new Dictionary<string, string>(StringComparer.Ordinal);
-        }
-
-        public static TagHelperDescriptorBuilder Create(string typeName, string assemblyName)
-        {
-            return new TagHelperDescriptorBuilder(typeName, assemblyName);
-        }
-
-        public TagHelperDescriptorBuilder BindAttribute(BoundAttributeDescriptor descriptor)
-        {
-            if (descriptor == null)
+            if (name == null)
             {
-                throw new ArgumentNullException(nameof(descriptor));
+                throw new ArgumentNullException(nameof(name));
             }
 
-            EnsureAttributeDescriptors();
-            _attributeDescriptors.Add(descriptor);
-
-            return this;
-        }
-
-        public TagHelperDescriptorBuilder BindAttribute(Action<ITagHelperBoundAttributeDescriptorBuilder> configure)
-        {
-            if (configure == null)
+            if (assemblyName == null)
             {
-                throw new ArgumentNullException(nameof(configure));
+                throw new ArgumentNullException(nameof(assemblyName));
             }
 
-            var builder = ITagHelperBoundAttributeDescriptorBuilder.Create(_typeName);
-
-            configure(builder);
-
-            var attributeDescriptor = builder.Build();
-
-            return BindAttribute(attributeDescriptor);
+            return new DefaultTagHelperDescriptorBuilder(TagHelperConventions.DefaultKind, name, assemblyName);
         }
 
-        public TagHelperDescriptorBuilder TagMatchingRule(TagMatchingRule rule)
+        public static TagHelperDescriptorBuilder Create(string kind, string name, string assemblyName)
         {
-            if (rule == null)
+            if (kind == null)
             {
-                throw new ArgumentNullException(nameof(rule));
+                throw new ArgumentNullException(nameof(kind));
             }
 
-            EnsureTagMatchingRules();
-            _tagMatchingRules.Add(rule);
-
-            return this;
-        }
-
-        public TagHelperDescriptorBuilder TagMatchingRule(Action<TagMatchingRuleBuilder> configure)
-        {
-            if (configure == null)
+            if (name == null)
             {
-                throw new ArgumentNullException(nameof(configure));
+                throw new ArgumentNullException(nameof(name));
             }
 
-            var builder = TagMatchingRuleBuilder.Create();
-
-            configure(builder);
-
-            var rule = builder.Build();
-
-            return TagMatchingRule(rule);
-        }
-
-        public TagHelperDescriptorBuilder AllowChildTag(string allowedChild)
-        {
-            EnsureAllowedChildTags();
-            _allowedChildTags.Add(allowedChild);
-
-            return this;
-        }
-
-        public TagHelperDescriptorBuilder TagOutputHint(string hint)
-        {
-            _tagOutputHint = hint;
-
-            return this;
-        }
-
-        public TagHelperDescriptorBuilder Documentation(string documentation)
-        {
-            _documentation = documentation;
-
-            return this;
-        }
-
-        public TagHelperDescriptorBuilder AddMetadata(string key, string value)
-        {
-            _metadata[key] = value;
-
-            return this;
-        }
-
-        public TagHelperDescriptorBuilder AddDiagnostic(RazorDiagnostic diagnostic)
-        {
-            EnsureDiagnostics();
-            _diagnostics.Add(diagnostic);
-
-            return this;
-        }
-
-        public TagHelperDescriptor Build()
-        {
-            var validationDiagnostics = Validate();
-            var diagnostics = new HashSet<RazorDiagnostic>(validationDiagnostics);
-            if (_diagnostics != null)
+            if (assemblyName == null)
             {
-                diagnostics.UnionWith(_diagnostics);
+                throw new ArgumentNullException(nameof(assemblyName));
             }
 
-            var descriptor = new ITagHelperDescriptor(
-                _typeName,
-                _assemblyName,
-                _typeName /* Name */,
-                _typeName /* DisplayName */,
-                _documentation,
-                _tagOutputHint,
-                _tagMatchingRules ?? Enumerable.Empty<TagMatchingRule>(),
-                _attributeDescriptors ?? Enumerable.Empty<BoundAttributeDescriptor>(),
-                _allowedChildTags ?? Enumerable.Empty<string>(),
-                _metadata,
-                diagnostics);
-
-            return descriptor;
+            return new DefaultTagHelperDescriptorBuilder(kind, name, assemblyName);
         }
 
-        public void Reset()
-        {
-            _documentation = null;
-            _tagOutputHint = null;
-            _allowedChildTags?.Clear();
-            _attributeDescriptors?.Clear();
-            _tagMatchingRules?.Clear();
-            _metadata.Clear();
-            _diagnostics?.Clear();
-        }
+        public abstract string Name { get; }
 
-        private IEnumerable<RazorDiagnostic> Validate()
-        {
-            if (_allowedChildTags != null)
-            {
-                foreach (var name in _allowedChildTags)
-                {
-                    if (string.IsNullOrWhiteSpace(name))
-                    {
-                        var diagnostic = RazorDiagnosticFactory.CreateTagHelper_InvalidRestrictedChildNullOrWhitespace(_typeName);
+        public abstract string AssemblyName { get; }
 
-                        yield return diagnostic;
-                    }
-                    else if (name != TagHelperMatchingConventions.ElementCatchAllName)
-                    {
-                        foreach (var character in name)
-                        {
-                            if (char.IsWhiteSpace(character) || InvalidNonWhitespaceAllowedChildCharacters.Contains(character))
-                            {
-                                var diagnostic = RazorDiagnosticFactory.CreateTagHelper_InvalidRestrictedChild(name, _typeName, character);
+        public abstract string Kind { get; }
 
-                                yield return diagnostic;
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        public abstract string DisplayName { get; set; }
 
-        private void EnsureAttributeDescriptors()
-        {
-            if (_attributeDescriptors == null)
-            {
-                _attributeDescriptors = new HashSet<BoundAttributeDescriptor>(BoundAttributeDescriptorComparer.Default);
-            }
-        }
+        public abstract string TagOutputHint { get; set; }
 
-        private void EnsureTagMatchingRules()
-        {
-            if (_tagMatchingRules == null)
-            {
-                _tagMatchingRules = new HashSet<TagMatchingRule>(TagMatchingRuleComparer.Default);
-            }
-        }
+        public abstract string Documentation { get; set; }
 
-        private void EnsureAllowedChildTags()
-        {
-            if (_allowedChildTags == null)
-            {
-                _allowedChildTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            }
-        }
+        public abstract IDictionary<string, string> Metadata { get; }
 
-        private void EnsureDiagnostics()
-        {
-            if (_diagnostics == null)
-            {
-                _diagnostics = new HashSet<RazorDiagnostic>();
-            }
-        }
+        public abstract RazorDiagnosticCollection Diagnostics { get; }
 
-        private class ITagHelperDescriptor : TagHelperDescriptor
-        {
-            public ITagHelperDescriptor(
-                string typeName,
-                string assemblyName,
-                string name,
-                string displayName,
-                string documentation,
-                string tagOutputHint,
-                IEnumerable<TagMatchingRule> tagMatchingRules,
-                IEnumerable<BoundAttributeDescriptor> attributeDescriptors,
-                IEnumerable<string> allowedChildTags,
-                Dictionary<string, string> metadata,
-                IEnumerable<RazorDiagnostic> diagnostics) : base(DescriptorKind)
-            {
-                Name = typeName;
-                AssemblyName = assemblyName;
-                DisplayName = displayName;
-                Documentation = documentation;
-                TagOutputHint = tagOutputHint;
-                TagMatchingRules = new List<TagMatchingRule>(tagMatchingRules);
-                BoundAttributes = new List<BoundAttributeDescriptor>(attributeDescriptors);
-                AllowedChildTags = new List<string>(allowedChildTags);
-                Diagnostics = new List<RazorDiagnostic>(diagnostics);
-                Metadata = new Dictionary<string, string>(metadata)
-                {
-                    [TypeNameKey] = typeName
-                };
-            }
-        }
+        public abstract IReadOnlyList<AllowedChildTagDescriptorBuilder> AllowedChildTags { get; }
+
+        public abstract IReadOnlyList<BoundAttributeDescriptorBuilder> BoundAttributes { get; }
+
+        public abstract IReadOnlyList<TagMatchingRuleDescriptorBuilder> TagMatchingRules { get; }
+
+        public abstract void AllowChildTag(Action<AllowedChildTagDescriptorBuilder> configure);
+
+        public abstract void BindAttribute(Action<BoundAttributeDescriptorBuilder> configure);
+
+        public abstract void TagMatchingRule(Action<TagMatchingRuleDescriptorBuilder> configure);
+
+        public abstract TagHelperDescriptor Build();
+
+        public abstract void Reset();
     }
 }

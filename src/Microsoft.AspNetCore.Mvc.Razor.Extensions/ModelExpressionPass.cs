@@ -9,114 +9,76 @@ using Microsoft.AspNetCore.Razor.Language.Intermediate;
 
 namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
 {
-    public class ModelExpressionPass : RazorIRPassBase, IRazorIROptimizationPass
+    public class ModelExpressionPass : IntermediateNodePassBase, IRazorOptimizationPass
     {
         private const string ModelExpressionTypeName = "Microsoft.AspNetCore.Mvc.ViewFeatures.ModelExpression";
 
-        public override void ExecuteCore(RazorCodeDocument codeDocument, DocumentIRNode irDocument)
+        protected override void ExecuteCore(RazorCodeDocument codeDocument, DocumentIntermediateNode documentNode)
         {
             var visitor = new Visitor();
-            visitor.Visit(irDocument);
+            visitor.Visit(documentNode);
         }
 
-        private class Visitor : RazorIRNodeWalker
+        private class Visitor : IntermediateNodeWalker
         {
-            public List<TagHelperIRNode> TagHelpers { get; } = new List<TagHelperIRNode>();
+            public List<TagHelperIntermediateNode> TagHelpers { get; } = new List<TagHelperIntermediateNode>();
 
-            public override void VisitSetTagHelperProperty(SetTagHelperPropertyIRNode node)
+            public override void VisitTagHelperProperty(TagHelperPropertyIntermediateNode node)
             {
-                if (string.Equals(node.Descriptor.TypeName, ModelExpressionTypeName, StringComparison.Ordinal) ||
+                if (string.Equals(node.BoundAttribute.TypeName, ModelExpressionTypeName, StringComparison.Ordinal) ||
                     (node.IsIndexerNameMatch &&
-                     string.Equals(node.Descriptor.IndexerTypeName, ModelExpressionTypeName, StringComparison.Ordinal)))
+                     string.Equals(node.BoundAttribute.IndexerTypeName, ModelExpressionTypeName, StringComparison.Ordinal)))
                 {
-                    var expression = new CSharpExpressionIRNode();
-                    var builder = RazorIRBuilder.Create(expression);
+                    var expression = new CSharpExpressionIntermediateNode();
 
-                    builder.Add(new RazorIRToken()
+                    expression.Children.Add(new IntermediateToken()
                     {
-                        Kind = RazorIRToken.TokenKind.CSharp,
+                        Kind = TokenKind.CSharp,
                         Content = "ModelExpressionProvider.CreateModelExpression(ViewData, __model => ",
                     });
 
-                    if (node.Children.Count == 1 && node.Children[0] is HtmlContentIRNode original)
+                    if (node.Children.Count == 1 && node.Children[0] is IntermediateToken token && token.IsCSharp)
                     {
                         // A 'simple' expression will look like __model => __model.Foo
-                        //
-                        // Note that the fact we're looking for HTML here is based on a bug.
-                        // https://github.com/aspnet/Razor/issues/963
 
-                        builder.Add(new RazorIRToken()
+                        expression.Children.Add(new IntermediateToken()
                         {
-                            Kind = RazorIRToken.TokenKind.CSharp,
+                            Kind = TokenKind.CSharp,
                             Content = "__model."
                         });
 
-                        var content = GetContent(original);
-                        builder.Add(new RazorIRToken()
-                        {
-                            Kind = RazorIRToken.TokenKind.CSharp,
-                            Content = content,
-                            Source = original.Source,
-                        });
+                        expression.Children.Add(token);
                     }
                     else
                     {
                         for (var i = 0; i < node.Children.Count; i++)
                         {
-                            if (node.Children[i] is CSharpExpressionIRNode nestedExpression)
+                            if (node.Children[i] is CSharpExpressionIntermediateNode nestedExpression)
                             {
                                 for (var j = 0; j < nestedExpression.Children.Count; j++)
                                 {
-                                    if (nestedExpression.Children[j] is RazorIRToken cSharpToken &&
+                                    if (nestedExpression.Children[j] is IntermediateToken cSharpToken &&
                                         cSharpToken.IsCSharp)
                                     {
-                                        builder.Add(cSharpToken);
+                                        expression.Children.Add(cSharpToken);
                                     }
                                 }
 
                                 continue;
                             }
-
-                            // Note that the fact we're looking for HTML here is based on a bug.
-                            // https://github.com/aspnet/Razor/issues/963
-                            if (node.Children[i] is HtmlContentIRNode html)
-                            {
-                                var content = GetContent(html);
-                                builder.Add(new RazorIRToken()
-                                {
-                                    Kind = RazorIRToken.TokenKind.CSharp,
-                                    Content = content,
-                                    Source = html.Source,
-                                });
-                            }
                         }
                     }
 
-                    builder.Add(new RazorIRToken()
+                    expression.Children.Add(new IntermediateToken()
                     {
-                        Kind = RazorIRToken.TokenKind.CSharp,
+                        Kind = TokenKind.CSharp,
                         Content = ")",
                     });
 
                     node.Children.Clear();
 
                     node.Children.Add(expression);
-                    expression.Parent = node;
                 }
-            }
-
-            private string GetContent(HtmlContentIRNode node)
-            {
-                var builder = new StringBuilder();
-                for (var i = 0; i < node.Children.Count; i++)
-                {
-                    if (node.Children[i] is RazorIRToken token && token.IsHtml)
-                    {
-                        builder.Append(token.Content);
-                    }
-                }
-
-                return builder.ToString();
             }
         }
     }

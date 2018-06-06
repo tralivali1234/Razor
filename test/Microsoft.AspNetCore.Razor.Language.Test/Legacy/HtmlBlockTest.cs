@@ -19,16 +19,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                     Factory.EmptyHtml(),
                     new StatementBlock(
                         Factory.CodeTransition(),
-                        Factory.MetaCode("{").Accepts(AcceptedCharacters.None),
+                        Factory.MetaCode("{").Accepts(AcceptedCharactersInternal.None),
                         Factory.Code(Environment.NewLine).AsStatement().AutoCompleteWith(null),
                         new MarkupBlock(
                             Factory.Markup("    "),
-                            Factory.Markup("<!-- Hello, I'm a comment that shouldn't break razor --->").Accepts(AcceptedCharacters.None),
-                            Factory.Markup(Environment.NewLine).Accepts(AcceptedCharacters.None)),
+                            BlockFactory.HtmlCommentBlock(" Hello, I'm a comment that shouldn't break razor -"),
+                            Factory.Markup(Environment.NewLine).Accepts(AcceptedCharactersInternal.None)),
                         Factory.EmptyCSharp().AsStatement(),
-                        Factory.MetaCode("}").Accepts(AcceptedCharacters.None)),
+                        Factory.MetaCode("}").Accepts(AcceptedCharactersInternal.None)),
                     Factory.EmptyHtml()),
-                new RazorError[0]);
+                new RazorDiagnostic[0]);
         }
 
         [Fact]
@@ -40,18 +40,15 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                     Factory.EmptyHtml(),
                     new StatementBlock(
                         Factory.CodeTransition(),
-                        Factory.MetaCode("{").Accepts(AcceptedCharacters.None),
+                        Factory.MetaCode("{").Accepts(AcceptedCharactersInternal.None),
                         Factory.Code(Environment.NewLine)
                             .AsStatement()
                             .AutoCompleteWith("}"),
                         new MarkupBlock(
                             new MarkupTagBlock(
                                 Factory.Markup("<"))))),
-                new RazorError(
-                    LegacyResources.FormatParseError_Expected_EndOfBlock_Before_EOF(
-                        LegacyResources.BlockName_Code, "}", "{"),
-                    new SourceLocation(1, 0, 1),
-                    length: 1));
+                RazorDiagnosticFactory.CreateParsing_ExpectedEndOfBlockBeforeEOF(
+                    new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), Resources.BlockName_Code, "}", "{"));
         }
 
         [Fact]
@@ -64,7 +61,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                     Factory.EmptyHtml(),
                     new StatementBlock(
                         Factory.CodeTransition(),
-                        Factory.MetaCode("{").Accepts(AcceptedCharacters.None),
+                        Factory.MetaCode("{").Accepts(AcceptedCharactersInternal.None),
                         Factory.Code(Environment.NewLine)
                             .AsStatement()
                             .AutoCompleteWith("}"),
@@ -74,7 +71,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                         ),
                         new MarkupBlock(
                             new MarkupTagBlock(
-                                Factory.Markup("</html>").Accepts(AcceptedCharacters.None))
+                                Factory.Markup("</html>").Accepts(AcceptedCharactersInternal.None))
                         ),
                         Factory.EmptyCSharp().AsStatement()
                     )
@@ -82,14 +79,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 designTime: true,
                 expectedErrors: new[]
                 {
-                    new RazorError(
-                        LegacyResources.FormatParseError_UnexpectedEndTag("html"),
-                        new SourceLocation(5 + Environment.NewLine.Length * 2, 2, 2),
-                        length: 4),
-                    new RazorError(
-                        LegacyResources.FormatParseError_Expected_EndOfBlock_Before_EOF("code", "}", "{"),
-                        new SourceLocation(1, 0, 1),
-                        length: 1)
+                    RazorDiagnosticFactory.CreateParsing_UnexpectedEndTag(
+                        new SourceSpan(new SourceLocation(5 + Environment.NewLine.Length * 2, 2, 2), contentLength: 4), "html"),
+                    RazorDiagnosticFactory.CreateParsing_ExpectedEndOfBlockBeforeEOF(
+                        new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), Resources.BlockName_Code, "}", "{"),
                 });
         }
 
@@ -102,10 +95,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                     new MarkupTagBlock(
                         Factory.Markup($"<                      {Environment.NewLine}   "))),
                 designTime: true,
-                expectedErrors: new RazorError(
-                    LegacyResources.FormatParseError_UnfinishedTag(string.Empty),
-                    new SourceLocation(1, 0, 1),
-                    length: 1));
+                expectedErrors: RazorDiagnosticFactory.CreateParsing_UnfinishedTag(
+                    new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), string.Empty));
         }
 
         [Fact]
@@ -114,14 +105,14 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("<li><p>Foo</P></lI>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<li>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<li>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("<p>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<p>").Accepts(AcceptedCharactersInternal.None)),
                     Factory.Markup("Foo"),
                     new MarkupTagBlock(
-                        Factory.Markup("</P>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("</P>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("</lI>").Accepts(AcceptedCharacters.None))
+                        Factory.Markup("</lI>").Accepts(AcceptedCharactersInternal.None))
                     ));
         }
 
@@ -134,7 +125,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                     Factory.MarkupTransition(),
                     Factory.MetaMarkup(":", HtmlSymbolType.Colon),
                     Factory.Markup("<li>Foo Bar Baz" + Environment.NewLine)
-                           .With(new SpanEditHandler(CSharpLanguageCharacteristics.Instance.TokenizeString, AcceptedCharacters.None))
+                           .With(new SpanEditHandler(CSharpLanguageCharacteristics.Instance.TokenizeString, AcceptedCharactersInternal.None))
                 ));
         }
 
@@ -156,13 +147,13 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("<a><b></b></a><c></c>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<a>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<a>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("<b>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<b>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("</b>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("</b>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("</a>").Accepts(AcceptedCharacters.None))
+                        Factory.Markup("</a>").Accepts(AcceptedCharactersInternal.None))
                     ));
         }
 
@@ -172,17 +163,17 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("<baz><boz><biz></biz></boz></baz>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<baz>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<baz>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("<boz>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<boz>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("<biz>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<biz>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("</biz>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("</biz>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("</boz>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("</boz>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("</baz>").Accepts(AcceptedCharacters.None))
+                        Factory.Markup("</baz>").Accepts(AcceptedCharactersInternal.None))
                     ));
         }
 
@@ -192,13 +183,13 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("<foo><bar><baz></foo>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<foo>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<foo>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("<bar>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<bar>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("<baz>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<baz>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("</foo>").Accepts(AcceptedCharacters.None))
+                        Factory.Markup("</foo>").Accepts(AcceptedCharactersInternal.None))
                     ));
         }
 
@@ -208,7 +199,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("<foo />",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<foo />").Accepts(AcceptedCharacters.None))
+                        Factory.Markup("<foo />").Accepts(AcceptedCharactersInternal.None))
                     ));
         }
 
@@ -218,11 +209,11 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("<foo><bar /></foo>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<foo>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<foo>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("<bar />").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<bar />").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("</foo>").Accepts(AcceptedCharacters.None))
+                        Factory.Markup("</foo>").Accepts(AcceptedCharactersInternal.None))
                     ));
         }
 
@@ -237,19 +228,19 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             Factory.Markup(" bar=\"").With(SpanChunkGenerator.Null),
                             Factory.Markup("baz").With(new LiteralAttributeChunkGenerator(new LocationTagged<string>(string.Empty, 10, 0, 10), new LocationTagged<string>("baz", 10, 0, 10))),
                             Factory.Markup("\"").With(SpanChunkGenerator.Null)),
-                        Factory.Markup(">").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup(">").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("<biz>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<biz>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
                         Factory.Markup("<boz"),
                         new MarkupBlock(new AttributeBlockChunkGenerator("zoop", new LocationTagged<string>(" zoop=", 24, 0, 24), new LocationTagged<string>(string.Empty, 34, 0, 34)),
                             Factory.Markup(" zoop=").With(SpanChunkGenerator.Null),
                             Factory.Markup("zork").With(new LiteralAttributeChunkGenerator(new LocationTagged<string>(string.Empty, 30, 0, 30), new LocationTagged<string>("zork", 30, 0, 30)))),
-                        Factory.Markup("/>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("/>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("</biz>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("</biz>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("</foo>").Accepts(AcceptedCharacters.None))));
+                        Factory.Markup("</foo>").Accepts(AcceptedCharactersInternal.None))));
         }
 
         [Fact]
@@ -258,16 +249,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("<foo><bar baz=\">\" /></foo>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<foo>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<foo>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
                         Factory.Markup("<bar"),
                         new MarkupBlock(new AttributeBlockChunkGenerator("baz", new LocationTagged<string>(" baz=\"", 9, 0, 9), new LocationTagged<string>("\"", 16, 0, 16)),
                             Factory.Markup(" baz=\"").With(SpanChunkGenerator.Null),
                             Factory.Markup(">").With(new LiteralAttributeChunkGenerator(new LocationTagged<string>(string.Empty, 15, 0, 15), new LocationTagged<string>(">", 15, 0, 15))),
                             Factory.Markup("\"").With(SpanChunkGenerator.Null)),
-                        Factory.Markup(" />").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup(" />").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("</foo>").Accepts(AcceptedCharacters.None))));
+                        Factory.Markup("</foo>").Accepts(AcceptedCharactersInternal.None))));
         }
 
         [Fact]
@@ -276,16 +267,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("<foo><bar baz=\'>\' /></foo>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<foo>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<foo>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
                         Factory.Markup("<bar"),
                         new MarkupBlock(new AttributeBlockChunkGenerator("baz", new LocationTagged<string>(" baz='", 9, 0, 9), new LocationTagged<string>("'", 16, 0, 16)),
                             Factory.Markup(" baz='").With(SpanChunkGenerator.Null),
                             Factory.Markup(">").With(new LiteralAttributeChunkGenerator(new LocationTagged<string>(string.Empty, 15, 0, 15), new LocationTagged<string>(">", 15, 0, 15))),
                             Factory.Markup("'").With(SpanChunkGenerator.Null)),
-                        Factory.Markup(" />").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup(" />").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("</foo>").Accepts(AcceptedCharacters.None))));
+                        Factory.Markup("</foo>").Accepts(AcceptedCharactersInternal.None))));
         }
 
         [Fact]
@@ -294,18 +285,18 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("<foo><bar baz=\"/\"></bar></foo>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<foo>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<foo>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
                         Factory.Markup("<bar"),
                         new MarkupBlock(new AttributeBlockChunkGenerator("baz", new LocationTagged<string>(" baz=\"", 9, 0, 9), new LocationTagged<string>("\"", 16, 0, 16)),
                             Factory.Markup(" baz=\"").With(SpanChunkGenerator.Null),
                             Factory.Markup("/").With(new LiteralAttributeChunkGenerator(new LocationTagged<string>(string.Empty, 15, 0, 15), new LocationTagged<string>("/", 15, 0, 15))),
                             Factory.Markup("\"").With(SpanChunkGenerator.Null)),
-                        Factory.Markup(">").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup(">").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("</bar>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("</bar>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("</foo>").Accepts(AcceptedCharacters.None))));
+                        Factory.Markup("</foo>").Accepts(AcceptedCharactersInternal.None))));
         }
 
         [Fact]
@@ -314,18 +305,18 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("<foo><bar baz=\'/\'></bar></foo>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<foo>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<foo>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
                         Factory.Markup("<bar"),
                         new MarkupBlock(new AttributeBlockChunkGenerator("baz", new LocationTagged<string>(" baz='", 9, 0, 9), new LocationTagged<string>("'", 16, 0, 16)),
                             Factory.Markup(" baz='").With(SpanChunkGenerator.Null),
                             Factory.Markup("/").With(new LiteralAttributeChunkGenerator(new LocationTagged<string>(string.Empty, 15, 0, 15), new LocationTagged<string>("/", 15, 0, 15))),
                             Factory.Markup("'").With(SpanChunkGenerator.Null)),
-                        Factory.Markup(">").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup(">").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("</bar>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("</bar>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("</foo>").Accepts(AcceptedCharacters.None))));
+                        Factory.Markup("</foo>").Accepts(AcceptedCharactersInternal.None))));
         }
 
         [Fact]
@@ -334,17 +325,21 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("<foo>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<foo>").Accepts(AcceptedCharacters.None))),
-                new RazorError(
-                    LegacyResources.FormatParseError_MissingEndTag("foo"),
-                    new SourceLocation(1, 0, 1),
-                    length: 3));
+                        Factory.Markup("<foo>").Accepts(AcceptedCharactersInternal.None))),
+                RazorDiagnosticFactory.CreateParsing_MissingEndTag(
+                    new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 3), "foo"));
         }
 
         [Fact]
         public void ParseBlockSupportsCommentAsBlock()
         {
-            SingleSpanBlockTest("<!-- foo -->", BlockKind.Markup, SpanKind.Markup, acceptedCharacters: AcceptedCharacters.None);
+            ParseBlockTest("<!-- foo -->", new MarkupBlock(BlockFactory.HtmlCommentBlock(" foo ")));
+        }
+
+        [Fact]
+        public void ParseBlockSupportsCommentWithExtraDashAsBlock()
+        {
+            ParseBlockTest("<!-- foo --->", new MarkupBlock(BlockFactory.HtmlCommentBlock(" foo -")));
         }
 
         [Fact]
@@ -353,12 +348,12 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("<foo>bar<!-- zoop -->baz</foo>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<foo>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<foo>").Accepts(AcceptedCharactersInternal.None)),
                     Factory.Markup("bar"),
-                    Factory.Markup("<!-- zoop -->").Accepts(AcceptedCharacters.None),
-                    Factory.Markup("baz"),
+                    BlockFactory.HtmlCommentBlock(" zoop "),
+                    Factory.Markup("baz").Accepts(AcceptedCharactersInternal.None),
                     new MarkupTagBlock(
-                        Factory.Markup("</foo>").Accepts(AcceptedCharacters.None))));
+                        Factory.Markup("</foo>").Accepts(AcceptedCharactersInternal.None))));
         }
 
         public static TheoryData HtmlCommentSupportsMultipleDashesData
@@ -366,44 +361,44 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             get
             {
                 var factory = new SpanFactory();
-
+                var blockFactory = new BlockFactory(factory);
                 return new TheoryData<string, MarkupBlock>
                 {
                     {
                         "<div><!--- Hello World ---></div>",
                         new MarkupBlock(
                             new MarkupTagBlock(
-                                factory.Markup("<div>").Accepts(AcceptedCharacters.None)),
-                            factory.Markup("<!--- Hello World --->").Accepts(AcceptedCharacters.None),
+                                factory.Markup("<div>").Accepts(AcceptedCharactersInternal.None)),
+                            blockFactory.HtmlCommentBlock("- Hello World -"),
                             new MarkupTagBlock(
-                                factory.Markup("</div>").Accepts(AcceptedCharacters.None)))
+                                factory.Markup("</div>").Accepts(AcceptedCharactersInternal.None)))
                     },
                     {
                         "<div><!---- Hello World ----></div>",
                         new MarkupBlock(
                             new MarkupTagBlock(
-                                factory.Markup("<div>").Accepts(AcceptedCharacters.None)),
-                            factory.Markup("<!---- Hello World ---->").Accepts(AcceptedCharacters.None),
+                                factory.Markup("<div>").Accepts(AcceptedCharactersInternal.None)),
+                            blockFactory.HtmlCommentBlock("-- Hello World --"),
                             new MarkupTagBlock(
-                                factory.Markup("</div>").Accepts(AcceptedCharacters.None)))
+                                factory.Markup("</div>").Accepts(AcceptedCharactersInternal.None)))
                     },
                     {
                         "<div><!----- Hello World -----></div>",
                         new MarkupBlock(
                             new MarkupTagBlock(
-                                factory.Markup("<div>").Accepts(AcceptedCharacters.None)),
-                            factory.Markup("<!----- Hello World ----->").Accepts(AcceptedCharacters.None),
+                                factory.Markup("<div>").Accepts(AcceptedCharactersInternal.None)),
+                            blockFactory.HtmlCommentBlock("--- Hello World ---"),
                             new MarkupTagBlock(
-                                factory.Markup("</div>").Accepts(AcceptedCharacters.None)))
+                                factory.Markup("</div>").Accepts(AcceptedCharactersInternal.None)))
                     },
                     {
                         "<div><!----- Hello < --- > World </div> -----></div>",
                         new MarkupBlock(
                             new MarkupTagBlock(
-                                factory.Markup("<div>").Accepts(AcceptedCharacters.None)),
-                            factory.Markup("<!----- Hello < --- > World </div> ----->").Accepts(AcceptedCharacters.None),
+                                factory.Markup("<div>").Accepts(AcceptedCharactersInternal.None)),
+                           blockFactory.HtmlCommentBlock("--- Hello < --- > World </div> ---"),
                             new MarkupTagBlock(
-                                factory.Markup("</div>").Accepts(AcceptedCharacters.None)))
+                                factory.Markup("</div>").Accepts(AcceptedCharactersInternal.None)))
                     },
                 };
             }
@@ -421,19 +416,22 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         [Fact]
         public void ParseBlockProperlyBalancesCommentStartAndEndTags()
         {
-            SingleSpanBlockTest("<!--<foo></bar>-->", BlockKind.Markup, SpanKind.Markup, acceptedCharacters: AcceptedCharacters.None);
+            ParseBlockTest("<!--<foo></bar>-->", new MarkupBlock(BlockFactory.HtmlCommentBlock("<foo></bar>")));
         }
 
         [Fact]
         public void ParseBlockTerminatesAtEOFWhenParsingComment()
         {
-            SingleSpanBlockTest("<!--<foo>", "<!--<foo>", BlockKind.Markup, SpanKind.Markup);
+            ParseBlockTest(
+                "<!--<foo>",
+                new MarkupBlock(
+                    Factory.Markup("<!--<foo>").Accepts(AcceptedCharactersInternal.None)));
         }
 
         [Fact]
         public void ParseBlockOnlyTerminatesCommentOnFullEndSequence()
         {
-            SingleSpanBlockTest("<!--<foo>--</bar>-->", BlockKind.Markup, SpanKind.Markup, acceptedCharacters: AcceptedCharacters.None);
+            ParseBlockTest("<!--<foo>--</bar>-->", new MarkupBlock(BlockFactory.HtmlCommentBlock("<foo>--</bar>")));
         }
 
         [Fact]
@@ -442,11 +440,11 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("<foo><!--<foo></bar-->--></foo>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<foo>").Accepts(AcceptedCharacters.None)),
-                    Factory.Markup("<!--<foo></bar-->").Accepts(AcceptedCharacters.None),
-                    Factory.Markup("-->"),
+                        Factory.Markup("<foo>").Accepts(AcceptedCharactersInternal.None)),
+                    BlockFactory.HtmlCommentBlock("<foo></bar"),
+                    Factory.Markup("-->").Accepts(AcceptedCharactersInternal.None),
                     new MarkupTagBlock(
-                        Factory.Markup("</foo>").Accepts(AcceptedCharacters.None))));
+                        Factory.Markup("</foo>").Accepts(AcceptedCharactersInternal.None))));
         }
 
         [Fact]
@@ -455,13 +453,11 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("<foo></!-- bar --></foo>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<foo>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<foo>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("</!-- bar -->").Accepts(AcceptedCharacters.None))),
-                new RazorError(
-                    LegacyResources.FormatParseError_MissingEndTag("foo"),
-                    new SourceLocation(1, 0, 1),
-                    length: 3));
+                        Factory.Markup("</!-- bar -->").Accepts(AcceptedCharactersInternal.None))),
+                RazorDiagnosticFactory.CreateParsing_MissingEndTag(
+                    new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 3), "foo"));
         }
 
 
@@ -471,10 +467,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("<foo><!DOCTYPE foo bar baz></foo>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<foo>").Accepts(AcceptedCharacters.None)),
-                    Factory.Markup("<!DOCTYPE foo bar baz>").Accepts(AcceptedCharacters.None),
+                        Factory.Markup("<foo>").Accepts(AcceptedCharactersInternal.None)),
+                    Factory.Markup("<!DOCTYPE foo bar baz>").Accepts(AcceptedCharactersInternal.None),
                     new MarkupTagBlock(
-                        Factory.Markup("</foo>").Accepts(AcceptedCharacters.None))));
+                        Factory.Markup("</foo>").Accepts(AcceptedCharactersInternal.None))));
         }
 
         [Fact]
@@ -483,11 +479,11 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("<foo><!DOCTYPE foo bar> baz></foo>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<foo>").Accepts(AcceptedCharacters.None)),
-                    Factory.Markup("<!DOCTYPE foo bar>").Accepts(AcceptedCharacters.None),
+                        Factory.Markup("<foo>").Accepts(AcceptedCharactersInternal.None)),
+                    Factory.Markup("<!DOCTYPE foo bar>").Accepts(AcceptedCharactersInternal.None),
                     Factory.Markup(" baz>"),
                     new MarkupTagBlock(
-                        Factory.Markup("</foo>").Accepts(AcceptedCharacters.None))));
+                        Factory.Markup("</foo>").Accepts(AcceptedCharactersInternal.None))));
         }
 
         [Fact]
@@ -496,10 +492,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("<foo><?xml foo bar baz?></foo>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<foo>").Accepts(AcceptedCharacters.None)),
-                    Factory.Markup("<?xml foo bar baz?>").Accepts(AcceptedCharacters.None),
+                        Factory.Markup("<foo>").Accepts(AcceptedCharactersInternal.None)),
+                    Factory.Markup("<?xml foo bar baz?>").Accepts(AcceptedCharactersInternal.None),
                     new MarkupTagBlock(
-                        Factory.Markup("</foo>").Accepts(AcceptedCharacters.None))));
+                        Factory.Markup("</foo>").Accepts(AcceptedCharactersInternal.None))));
         }
 
         [Fact]
@@ -508,11 +504,11 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("<foo><?xml foo bar baz?> baz</foo>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<foo>").Accepts(AcceptedCharacters.None)),
-                    Factory.Markup("<?xml foo bar baz?>").Accepts(AcceptedCharacters.None),
+                        Factory.Markup("<foo>").Accepts(AcceptedCharactersInternal.None)),
+                    Factory.Markup("<?xml foo bar baz?>").Accepts(AcceptedCharactersInternal.None),
                     Factory.Markup(" baz"),
                     new MarkupTagBlock(
-                        Factory.Markup("</foo>").Accepts(AcceptedCharacters.None))));
+                        Factory.Markup("</foo>").Accepts(AcceptedCharactersInternal.None))));
         }
 
         [Fact]
@@ -521,10 +517,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("<foo><?xml foo bar> baz?></foo>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<foo>").Accepts(AcceptedCharacters.None)),
-                    Factory.Markup("<?xml foo bar> baz?>").Accepts(AcceptedCharacters.None),
+                        Factory.Markup("<foo>").Accepts(AcceptedCharactersInternal.None)),
+                    Factory.Markup("<?xml foo bar> baz?>").Accepts(AcceptedCharactersInternal.None),
                     new MarkupTagBlock(
-                        Factory.Markup("</foo>").Accepts(AcceptedCharacters.None))));
+                        Factory.Markup("</foo>").Accepts(AcceptedCharactersInternal.None))));
         }
 
         [Fact]
@@ -533,10 +529,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest(@"<script>if(foo<bar) { alert(""baz"");)</script>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<script>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<script>").Accepts(AcceptedCharactersInternal.None)),
                     Factory.Markup(@"if(foo<bar) { alert(""baz"");)"),
                     new MarkupTagBlock(
-                        Factory.Markup("</script>").Accepts(AcceptedCharacters.None))));
+                        Factory.Markup("</script>").Accepts(AcceptedCharactersInternal.None))));
         }
 
         [Fact]
@@ -545,10 +541,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest(@"<script>if(foo < bar) { alert(""baz"");)</script>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<script>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<script>").Accepts(AcceptedCharactersInternal.None)),
                     Factory.Markup(@"if(foo < bar) { alert(""baz"");)"),
                     new MarkupTagBlock(
-                        Factory.Markup("</script>").Accepts(AcceptedCharacters.None))));
+                        Factory.Markup("</script>").Accepts(AcceptedCharactersInternal.None))));
         }
 
         [Fact]
@@ -568,9 +564,9 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 new MarkupBlock(
                     new MarkupTagBlock(
                         Factory.MarkupTransition("<text>")),
-                    Factory.Markup("Foo Bar ").Accepts(AcceptedCharacters.None),
+                    Factory.Markup("Foo Bar ").Accepts(AcceptedCharactersInternal.None),
                     new MarkupTagBlock(
-                        Factory.Markup("<foo>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<foo>").Accepts(AcceptedCharactersInternal.None)),
                     Factory.Markup(" Baz"),
                     new MarkupTagBlock(
                         Factory.MarkupTransition("</text>"))));
@@ -584,13 +580,13 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                     new MarkupTagBlock(
                         Factory.MarkupTransition("<text>")),
                     new MarkupTagBlock(
-                        Factory.Markup("<text>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<text>").Accepts(AcceptedCharactersInternal.None)),
                     Factory.Markup("Foo Bar "),
                     new MarkupTagBlock(
-                        Factory.Markup("<foo>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<foo>").Accepts(AcceptedCharactersInternal.None)),
                     Factory.Markup(" Baz"),
                     new MarkupTagBlock(
-                        Factory.Markup("</text>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("</text>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
                         Factory.MarkupTransition("</text>"))));
         }
@@ -601,15 +597,15 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("<foo><text><bar></bar></foo>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<foo>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<foo>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("<text>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<text>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("<bar>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<bar>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("</bar>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("</bar>").Accepts(AcceptedCharactersInternal.None)),
                     new MarkupTagBlock(
-                        Factory.Markup("</foo>").Accepts(AcceptedCharacters.None))
+                        Factory.Markup("</foo>").Accepts(AcceptedCharactersInternal.None))
                 ));
         }
 
@@ -620,10 +616,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 new MarkupBlock(
                     new MarkupTagBlock(
                         Factory.Markup("<br/"))),
-                new RazorError(
-                    LegacyResources.FormatParseError_UnfinishedTag("br"),
-                    new SourceLocation(1, 0, 1),
-                    length: 2));
+                RazorDiagnosticFactory.CreateParsing_UnfinishedTag(
+                    new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 2), "br"));
         }
 
         [Fact]
@@ -632,14 +626,14 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("<div>Foo @if(true) {} Bar</div>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<div>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<div>").Accepts(AcceptedCharactersInternal.None)),
                     Factory.Markup("Foo "),
                     new StatementBlock(
                         Factory.CodeTransition(),
                         Factory.Code("if(true) {}").AsStatement()),
                     Factory.Markup(" Bar"),
                     new MarkupTagBlock(
-                        Factory.Markup("</div>").Accepts(AcceptedCharacters.None))));
+                        Factory.Markup("</div>").Accepts(AcceptedCharactersInternal.None))));
         }
 
         [Fact]
@@ -648,16 +642,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest(@"<script>foo<bar baz='@boz'></script>",
                 new MarkupBlock(
                     new MarkupTagBlock(
-                        Factory.Markup("<script>").Accepts(AcceptedCharacters.None)),
+                        Factory.Markup("<script>").Accepts(AcceptedCharactersInternal.None)),
                     Factory.Markup("foo<bar baz='"),
                     new ExpressionBlock(
                         Factory.CodeTransition(),
                         Factory.Code("boz")
                                .AsImplicitExpression(CSharpCodeParser.DefaultKeywords, acceptTrailingDot: false)
-                               .Accepts(AcceptedCharacters.NonWhiteSpace)),
+                               .Accepts(AcceptedCharactersInternal.NonWhiteSpace)),
                     Factory.Markup("'>"),
                     new MarkupTagBlock(
-                        Factory.Markup("</script>").Accepts(AcceptedCharacters.None))));
+                        Factory.Markup("</script>").Accepts(AcceptedCharactersInternal.None))));
         }
     }
 }

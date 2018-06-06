@@ -8,8 +8,8 @@ using Microsoft.Extensions.Internal;
 
 namespace Microsoft.AspNetCore.Razor.Language.Legacy
 {
-    [DebuggerDisplay("({Location})\"{Value}\"")]
-    public class LocationTagged<TValue> : IFormattable
+    [DebuggerDisplay("{" + nameof(DebuggerToString) + "(),nq}")]
+    internal class LocationTagged<TValue> : IFormattable
     {
         public LocationTagged(TValue value, int absoluteIndex, int lineIndex, int characterIndex)
             : this (value, new SourceLocation(absoluteIndex, lineIndex, characterIndex))
@@ -79,6 +79,11 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         public static implicit operator TValue(LocationTagged<TValue> value)
         {
             return value == null ? default(TValue) : value.Value;
+        }
+
+        private string DebuggerToString()
+        {
+            return $@"({Location})""{Value}""";
         }
     }
 }

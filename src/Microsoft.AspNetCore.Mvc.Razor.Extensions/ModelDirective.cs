@@ -11,16 +11,29 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
 {
     public static class ModelDirective
     {
-        public static readonly DirectiveDescriptor Directive = DirectiveDescriptorBuilder.Create("model").AddType().Build();
+        public static readonly DirectiveDescriptor Directive = DirectiveDescriptor.CreateDirective(
+            "model",
+            DirectiveKind.SingleLine,
+            builder =>
+            {
+                builder.AddTypeToken(Resources.ModelDirective_TypeToken_Name, Resources.ModelDirective_TypeToken_Description);
+                builder.Usage = DirectiveUsage.FileScopedSinglyOccurring;
+                builder.Description = Resources.ModelDirective_Description;
+            });
 
-        public static IRazorEngineBuilder Register(IRazorEngineBuilder builder)
+        public static RazorProjectEngineBuilder Register(RazorProjectEngineBuilder builder)
         {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
             builder.AddDirective(Directive);
-            builder.Features.Add(new Pass(builder.DesignTime));
+            builder.Features.Add(new Pass());
             return builder;
         }
 
-        public static string GetModelType(DocumentIRNode document)
+        public static string GetModelType(DocumentIntermediateNode document)
         {
             if (document == null)
             {
@@ -31,7 +44,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
             return GetModelType(document, visitor);
         }
 
-        private static string GetModelType(DocumentIRNode document, Visitor visitor)
+        private static string GetModelType(DocumentIntermediateNode document, Visitor visitor)
         {
             visitor.Visit(document);
 
@@ -48,37 +61,30 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
 
             if (document.DocumentKind == RazorPageDocumentClassifierPass.RazorPageDocumentKind)
             {
-                return visitor.Class.Name;
+                return visitor.Class.ClassName;
             }
             else
             {
-                return  "dynamic";
+                return "dynamic";
             }
         }
 
-        internal class Pass : RazorIRPassBase, IRazorDirectiveClassifierPass
+        internal class Pass : IntermediateNodePassBase, IRazorDirectiveClassifierPass
         {
-            private readonly bool _designTime;
-
-            public Pass(bool designTime)
-            {
-                _designTime = designTime;
-            }
-
             // Runs after the @inherits directive
             public override int Order => 5;
 
-            public override void ExecuteCore(RazorCodeDocument codeDocument, DocumentIRNode irDocument)
+            protected override void ExecuteCore(RazorCodeDocument codeDocument, DocumentIntermediateNode documentNode)
             {
                 var visitor = new Visitor();
-                var modelType = GetModelType(irDocument, visitor);
+                var modelType = GetModelType(documentNode, visitor);
 
-                if (_designTime)
+                if (documentNode.Options.DesignTime)
                 {
                     // Alias the TModel token to a known type.
                     // This allows design time compilation to succeed for Razor files where the token isn't replaced.
                     var typeName = $"global::{typeof(object).FullName}";
-                    var usingNode = new UsingStatementIRNode()
+                    var usingNode = new UsingDirectiveIntermediateNode()
                     {
                         Content = $"TModel = {typeName}"
                     };
@@ -87,63 +93,60 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
                 }
 
                 var baseType = visitor.Class?.BaseType?.Replace("<TModel>", "<" + modelType + ">");
-                for (var i = visitor.InheritsDirectives.Count - 1; i >= 0; i--)
-                {
-                    var directive = visitor.InheritsDirectives[i];
-                    var tokens = directive.Tokens.ToArray();
-                    if (tokens.Length >= 1)
-                    {
-                        baseType = tokens[0].Content.Replace("<TModel>", "<" + modelType + ">");
-                        tokens[0].Content = baseType;
-                        break;
-                    }
-                }
-
                 visitor.Class.BaseType = baseType;
             }
         }
 
-        private class Visitor : RazorIRNodeWalker
+        private class Visitor : IntermediateNodeWalker
         {
-            public NamespaceDeclarationIRNode Namespace { get; private set; }
+            public NamespaceDeclarationIntermediateNode Namespace { get; private set; }
 
-            public ClassDeclarationIRNode Class { get; private set; }
+            public ClassDeclarationIntermediateNode Class { get; private set; }
 
-            public IList<DirectiveIRNode> InheritsDirectives { get; } = new List<DirectiveIRNode>();
+            public IList<DirectiveIntermediateNode> ModelDirectives { get; } = new List<DirectiveIntermediateNode>();
 
-            public IList<DirectiveIRNode> ModelDirectives { get; } = new List<DirectiveIRNode>();
-
-            public override void VisitNamespace(NamespaceDeclarationIRNode node)
+            public override void VisitNamespaceDeclaration(NamespaceDeclarationIntermediateNode node)
             {
                 if (Namespace == null)
                 {
                     Namespace = node;
                 }
 
-                base.VisitNamespace(node);
+                base.VisitNamespaceDeclaration(node);
             }
 
-            public override void VisitClass(ClassDeclarationIRNode node)
+            public override void VisitClassDeclaration(ClassDeclarationIntermediateNode node)
             {
                 if (Class == null)
                 {
                     Class = node;
                 }
 
-                base.VisitClass(node);
+                base.VisitClassDeclaration(node);
             }
 
-            public override void VisitDirective(DirectiveIRNode node)
+            public override void VisitDirective(DirectiveIntermediateNode node)
             {
-                if (node.Descriptor == Directive)
+                if (node.Directive == Directive)
                 {
                     ModelDirectives.Add(node);
                 }
-                else if (node.Descriptor.Name == "inherits")
-                {
-                    InheritsDirectives.Add(node);
-                }
             }
         }
+
+        #region Obsolete
+        [Obsolete("This method is obsolete and will be removed in a future version.")]
+        public static IRazorEngineBuilder Register(IRazorEngineBuilder builder)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.AddDirective(Directive);
+            builder.Features.Add(new Pass());
+            return builder;
+        }
+        #endregion
     }
 }

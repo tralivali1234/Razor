@@ -1,19 +1,17 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.AspNetCore.Razor.Language.IntegrationTests;
 using Microsoft.AspNetCore.Razor.TagHelpers;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.Emit;
 using Microsoft.CodeAnalysis.Razor;
-using Microsoft.Extensions.DependencyModel;
 using Xunit;
 
 namespace Microsoft.AspNetCore.Mvc.Razor.Extensions.IntegrationTests
@@ -22,587 +20,712 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions.IntegrationTests
     {
         private static readonly RazorSourceDocument DefaultImports = MvcRazorTemplateEngine.GetDefaultImports();
 
+        private CSharpCompilation BaseCompilation => MvcShim.BaseCompilation.WithAssemblyName("AppCode");
+
         #region Runtime
+        [Fact]
+        public void InvalidNamespaceAtEOF_Runtime()
+        {
+            var compilation = BaseCompilation;
+            RunRuntimeTest(compilation);
+        }
+
         [Fact]
         public void IncompleteDirectives_Runtime()
         {
-            // Arrange
-            var engine = CreateDesignTimeEngine();
-            var document = CreateCodeDocument();
+            var appCode = @"
+public class MyService<TModel>
+{
+    public string Html { get; set; }
+}";
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
 
-            // Act
-            engine.Process(document);
-
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+            RunRuntimeTest(compilation);
         }
 
         [Fact]
         public void InheritsViewModel_Runtime()
         {
-            // Arrange
-            var engine = CreateDesignTimeEngine();
-            var document = CreateCodeDocument();
+            var appCode = @"
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc.Razor;
 
-            // Act
-            engine.Process(document);
+public class MyBasePageForViews<TModel> : RazorPage
+{
+    public override Task ExecuteAsync()
+    {
+        throw new System.NotImplementedException();
+    }
+}
+public class MyModel
+{
 
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+}
+";
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
+
+            RunRuntimeTest(compilation);
         }
 
         [Fact]
         public void InheritsWithViewImports_Runtime()
         {
-            // Arrange
-            var engine = CreateDesignTimeEngine();
-            var document = CreateCodeDocument();
+            var appCode = @"
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 
-            // Act
-            engine.Process(document);
+public abstract class MyPageModel<T> : Page
+{
+    public override Task ExecuteAsync()
+    {
+        throw new System.NotImplementedException();
+    }
+}
 
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+public class MyModel
+{
+
+}";
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
+
+            RunRuntimeTest(compilation);
         }
 
         [Fact]
         public void MalformedPageDirective_Runtime()
         {
-            // Arrange
-            var engine = CreateRuntimeEngine();
-            var document = CreateCodeDocument();
+            var compilation = BaseCompilation;
 
-            // Act
-            engine.Process(document);
-
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+            RunRuntimeTest(compilation);
         }
 
         [Fact]
         public void Basic_Runtime()
         {
-            // Arrange
-            var engine = CreateRuntimeEngine();
-            var document = CreateCodeDocument();
+            var compilation = BaseCompilation;
 
-            // Act
-            engine.Process(document);
+            RunRuntimeTest(compilation);
+        }
 
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+        [Fact]
+        public void Sections_Runtime()
+        {
+            var appCode = $@"
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
+
+public class InputTestTagHelper : {typeof(TagHelper).FullName}
+{{
+    public ModelExpression For {{ get; set; }}
+}}
+";
+
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
+
+            RunRuntimeTest(compilation);
         }
 
         [Fact]
         public void _ViewImports_Runtime()
         {
-            // Arrange
-            var engine = CreateRuntimeEngine();
-            var document = CreateCodeDocument();
+            var compilation = BaseCompilation;
 
-            // Act
-            engine.Process(document);
-
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+            RunRuntimeTest(compilation);
         }
 
         [Fact]
         public void Inject_Runtime()
         {
-            // Arrange
-            var engine = CreateRuntimeEngine();
-            var document = CreateCodeDocument();
+            var appCode = @"
+public class MyApp
+{
+    public string MyProperty { get; set; }
+}
+";
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
 
-            // Act
-            engine.Process(document);
-
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+            RunRuntimeTest(compilation);
         }
 
         [Fact]
         public void InjectWithModel_Runtime()
         {
-            // Arrange
-            var engine = CreateRuntimeEngine();
-            var document = CreateCodeDocument();
+            var appCode = @"
+public class MyModel
+{
 
-            // Act
-            engine.Process(document);
+}
 
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+public class MyService<TModel>
+{
+    public string Html { get; set; }
+}
+
+public class MyApp
+{
+    public string MyProperty { get; set; }
+}";
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
+
+            RunRuntimeTest(compilation);
         }
 
         [Fact]
         public void InjectWithSemicolon_Runtime()
         {
-            // Arrange
-            var engine = CreateRuntimeEngine();
-            var document = CreateCodeDocument();
+            var appCode = @"
+public class MyModel
+{
 
-            // Act
-            engine.Process(document);
+}
 
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+public class MyApp
+{
+    public string MyProperty { get; set; }
+}
+
+public class MyService<TModel>
+{
+    public string Html { get; set; }
+}
+";
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
+
+            RunRuntimeTest(compilation);
         }
 
         [Fact]
         public void Model_Runtime()
         {
-            // Arrange
-            var engine = CreateRuntimeEngine();
-            var document = CreateCodeDocument();
+            var compilation = BaseCompilation;
 
-            // Act
-            engine.Process(document);
-
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+            RunRuntimeTest(compilation);
         }
 
         [Fact]
         public void ModelExpressionTagHelper_Runtime()
         {
-            // Arrange
-            var engine = CreateRuntimeEngine();
-            var document = CreateCodeDocument();
+            var appCode = $@"
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 
-            // Act
-            engine.Process(document);
+public class InputTestTagHelper : {typeof(TagHelper).FullName}
+{{
+    public ModelExpression For {{ get; set; }}
+}}
+";
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
 
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+            RunRuntimeTest(compilation);
         }
 
         [Fact]
         public void RazorPages_Runtime()
         {
-            // Arrange
-            var engine = CreateRuntimeEngine(BuildDivDescriptors());
-            var document = CreateCodeDocument();
+            var appCode = $@"
+public class DivTagHelper : {typeof(TagHelper).FullName}
+{{
 
-            // Act
-            engine.Process(document);
+}}
+";
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
 
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+            RunRuntimeTest(compilation);
+        }
+
+        [Fact]
+        public void RazorPagesWithRouteTemplate_Runtime()
+        {
+            var compilation = BaseCompilation;
+
+            RunRuntimeTest(compilation);
         }
 
         [Fact]
         public void RazorPagesWithoutModel_Runtime()
         {
-            // Arrange
-            var engine = CreateRuntimeEngine(BuildDivDescriptors());
-            var document = CreateCodeDocument();
+            var appCode = $@"
+public class DivTagHelper : {typeof(TagHelper).FullName}
+{{
 
-            // Act
-            engine.Process(document);
+}}
+";
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
 
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+            RunRuntimeTest(compilation);
         }
 
         [Fact]
         public void PageWithNamespace_Runtime()
         {
-            // Arrange
-            var engine = CreateRuntimeEngine();
-            var document = CreateCodeDocument();
-
-            // Act
-            engine.Process(document);
-
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+            var compilation = BaseCompilation;
+            RunRuntimeTest(compilation);
         }
 
         [Fact]
         public void ViewWithNamespace_Runtime()
         {
-            // Arrange
-            var engine = CreateRuntimeEngine();
-            var document = CreateCodeDocument();
+            var compilation = BaseCompilation;
+            RunRuntimeTest(compilation);
+        }
 
-            // Act
-            engine.Process(document);
+        [Fact]
+        public void ViewComponentTagHelper_Runtime()
+        {
+            var appCode = $@"
+public class TestViewComponent
+{{
+    public string Invoke(string firstName)
+    {{
+        return firstName;
+    }}
+}}
 
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+[{typeof(HtmlTargetElementAttribute).FullName}]
+public class AllTagHelper : {typeof(TagHelper).FullName}
+{{
+    public string Bar {{ get; set; }}
+}}
+";
+
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
+            
+            RunRuntimeTest(compilation);
+        }
+
+        [Fact]
+        public void RazorPageWithNoLeadingPageDirective_Runtime()
+        {
+            var compilation = BaseCompilation;
+
+            RunRuntimeTest(compilation);
         }
         #endregion
 
         #region DesignTime
         [Fact]
+        public void InvalidNamespaceAtEOF_DesignTime()
+        {
+            var compilation = BaseCompilation;
+            RunDesignTimeTest(compilation);
+        }
+
+        [Fact]
         public void IncompleteDirectives_DesignTime()
         {
-            // Arrange
-            var engine = CreateDesignTimeEngine();
-            var document = CreateCodeDocument();
+            var appCode = @"
+public class MyService<TModel>
+{
+    public string Html { get; set; }
+}
+";
 
-            // Act
-            engine.Process(document);
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
 
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+            RunDesignTimeTest(compilation);
         }
 
         [Fact]
         public void InheritsViewModel_DesignTime()
         {
-            // Arrange
-            var engine = CreateDesignTimeEngine();
-            var document = CreateCodeDocument();
+            var appCode = @"
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc.Razor;
 
-            // Act
-            engine.Process(document);
+public class MyBasePageForViews<TModel> : RazorPage
+{
+    public override Task ExecuteAsync()
+    {
+        throw new System.NotImplementedException();
+    }
+}
 
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+public class MyModel
+{
+
+}
+";
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
+
+            RunDesignTimeTest(compilation);
         }
 
         [Fact]
         public void InheritsWithViewImports_DesignTime()
         {
-            // Arrange
-            var engine = CreateDesignTimeEngine();
-            var document = CreateCodeDocument();
+            var appCode = @"
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 
-            // Act
-            engine.Process(document);
+public class MyModel
+{
 
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+}
+
+public abstract class MyPageModel<T> : Page
+{
+    public override Task ExecuteAsync()
+    {
+        throw new System.NotImplementedException();
+    }
+}
+";
+
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
+
+            RunDesignTimeTest(compilation);
         }
 
         [Fact]
         public void MalformedPageDirective_DesignTime()
         {
-            // Arrange
-            var engine = CreateDesignTimeEngine();
-            var document = CreateCodeDocument();
-
-            // Act
-            engine.Process(document);
-
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+            var compilation = BaseCompilation;
+            RunDesignTimeTest(compilation);
         }
 
         [Fact]
         public void Basic_DesignTime()
         {
-            // Arrange
-            var engine = CreateDesignTimeEngine();
-            var document = CreateCodeDocument();
+            var compilation = BaseCompilation;
+            RunDesignTimeTest(compilation);
+        }
 
-            // Act
-            engine.Process(document);
+        [Fact]
+        public void Sections_DesignTime()
+        {
+            var appCode = $@"
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+public class InputTestTagHelper : {typeof(TagHelper).FullName}
+{{
+    public ModelExpression For {{ get; set; }}
+}}
+";
+
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
+
+            RunDesignTimeTest(compilation);
         }
 
         [Fact]
         public void _ViewImports_DesignTime()
         {
-            // Arrange
-            var engine = CreateDesignTimeEngine();
-            var document = CreateCodeDocument();
-
-            // Act
-            engine.Process(document);
-
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+            var compilation = BaseCompilation;
+            RunDesignTimeTest(compilation);
         }
 
         [Fact]
         public void Inject_DesignTime()
         {
-            // Arrange
-            var engine = CreateDesignTimeEngine();
-            var document = CreateCodeDocument();
+            var appCode = @"
+public class MyApp
+{
+    public string MyProperty { get; set; }
+}
+";
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
 
-            // Act
-            engine.Process(document);
-
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+            RunDesignTimeTest(compilation);
         }
 
         [Fact]
         public void InjectWithModel_DesignTime()
         {
-            // Arrange
-            var engine = CreateDesignTimeEngine();
-            var document = CreateCodeDocument();
+            var appCode = @"
+public class MyModel
+{
 
-            // Act
-            engine.Process(document);
+}
 
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+public class MyService<TModel>
+{
+    public string Html { get; set; }
+}
+
+public class MyApp
+{
+    public string MyProperty { get; set; }
+}
+";
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
+
+            RunDesignTimeTest(compilation);
         }
 
         [Fact]
         public void InjectWithSemicolon_DesignTime()
         {
-            // Arrange
-            var engine = CreateDesignTimeEngine();
-            var document = CreateCodeDocument();
+            var appCode = @"
+public class MyModel
+{
 
-            // Act
-            engine.Process(document);
+}
 
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+public class MyService<TModel>
+{
+    public string Html { get; set; }
+}
+
+public class MyApp
+{
+    public string MyProperty { get; set; }
+}
+";
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
+
+            RunDesignTimeTest(compilation);
         }
 
         [Fact]
         public void Model_DesignTime()
         {
-            // Arrange
-            var engine = CreateDesignTimeEngine();
-            var document = CreateCodeDocument();
-
-            // Act
-            engine.Process(document);
-
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+            var compilation = BaseCompilation;
+            RunDesignTimeTest(compilation);
         }
 
         [Fact]
         public void MultipleModels_DesignTime()
         {
-            // Arrange
-            var engine = CreateDesignTimeEngine();
-            var document = CreateCodeDocument();
+            var appCode = @"
+public class ThisShouldBeGenerated
+{
 
-            // Act
-            engine.Process(document);
+}";
 
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
+
+            RunDesignTimeTest(compilation);
         }
-
+        
         [Fact]
         public void ModelExpressionTagHelper_DesignTime()
         {
-            // Arrange
-            var engine = CreateDesignTimeEngine();
-            var document = CreateCodeDocument();
+            var appCode = $@"
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 
-            // Act
-            engine.Process(document);
+public class InputTestTagHelper : {typeof(TagHelper).FullName}
+{{
+    public ModelExpression For {{ get; set; }}
+}}
+";
 
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
+
+            RunDesignTimeTest(compilation);
         }
 
         [Fact]
         public void RazorPages_DesignTime()
         {
-            // Arrange
-            var engine = CreateDesignTimeEngine(BuildDivDescriptors());
-            var document = CreateCodeDocument();
+            var appCode = $@"
+public class DivTagHelper : {typeof(TagHelper).FullName}
+{{
 
-            // Act
-            engine.Process(document);
+}}
+";
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
 
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+            RunDesignTimeTest(compilation);
+        }
+
+        [Fact]
+        public void RazorPagesWithRouteTemplate_DesignTime()
+        {
+            var compilation = BaseCompilation;
+
+            RunDesignTimeTest(compilation);
         }
 
         [Fact]
         public void RazorPagesWithoutModel_DesignTime()
         {
-            // Arrange
-            var engine = CreateDesignTimeEngine(BuildDivDescriptors());
-            var document = CreateCodeDocument();
+            var appCode = $@"
+public class DivTagHelper : {typeof(TagHelper).FullName}
+{{
 
-            // Act
-            engine.Process(document);
+}}
+";
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
 
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+            RunDesignTimeTest(compilation);
         }
 
         [Fact]
         public void PageWithNamespace_DesignTime()
         {
-            // Arrange
-            var engine = CreateDesignTimeEngine();
-            var document = CreateCodeDocument();
-
-            // Act
-            engine.Process(document);
-
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+            var compilation = BaseCompilation;
+            RunDesignTimeTest(compilation);
         }
 
         [Fact]
         public void ViewWithNamespace_DesignTime()
         {
-            // Arrange
-            var engine = CreateDesignTimeEngine();
-            var document = CreateCodeDocument();
+            var compilation = BaseCompilation;
+            RunDesignTimeTest(compilation);
+        }
 
-            // Act
-            engine.Process(document);
+        [Fact]
+        public void ViewComponentTagHelper_DesignTime()
+        {
+            var appCode = $@"
+public class TestViewComponent
+{{
+    public string Invoke(string firstName)
+    {{
+        return firstName;
+    }}
+}}
 
-            // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
-            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+[{typeof(HtmlTargetElementAttribute).FullName}]
+public class AllTagHelper : {typeof(TagHelper).FullName}
+{{
+    public string Bar {{ get; set; }}
+}}
+";
+
+            var compilation = BaseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(appCode));
+            
+            RunDesignTimeTest(compilation);
+        }
+
+        [Fact]
+        public void RazorPageWithNoLeadingPageDirective_DesignTime()
+        {
+            var compilation = BaseCompilation;
+
+            RunDesignTimeTest(compilation);
         }
         #endregion
 
-        protected RazorEngine CreateDesignTimeEngine(IEnumerable<TagHelperDescriptor> descriptors = null)
+        private void RunRuntimeTest(
+            CSharpCompilation baseCompilation,
+            IEnumerable<string> expectedErrors = null)
         {
-            return RazorEngine.CreateDesignTime(b =>
+            Assert.Empty(baseCompilation.GetDiagnostics());
+
+            // Arrange
+            var engine = CreateEngine(baseCompilation);
+            var projectItem = CreateProjectItem();
+
+            // Act
+            var document = engine.Process(projectItem);
+
+            // Assert
+            AssertDocumentNodeMatchesBaseline(document.GetDocumentIntermediateNode());
+            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+            AssertDocumentCompiles(document, baseCompilation, expectedErrors);
+        }
+
+        private void RunDesignTimeTest(
+            CSharpCompilation baseCompilation,
+            IEnumerable<string> expectedErrors = null)
+        {
+            Assert.Empty(baseCompilation.GetDiagnostics());
+
+            // Arrange
+            var engine = CreateEngine(baseCompilation);
+            var projectItem = CreateProjectItem();
+
+            // Act
+            var document = engine.ProcessDesignTime(projectItem);
+
+            // Assert
+            AssertDocumentNodeMatchesBaseline(document.GetDocumentIntermediateNode());
+            AssertCSharpDocumentMatchesBaseline(document.GetCSharpDocument());
+            AssertSourceMappingsMatchBaseline(document);
+            AssertDocumentCompiles(document, baseCompilation, expectedErrors);
+        }
+
+        private void AssertDocumentCompiles(
+            RazorCodeDocument document,
+            CSharpCompilation baseCompilation,
+            IEnumerable<string> expectedErrors = null)
+        {
+            var cSharp = document.GetCSharpDocument().GeneratedCode;
+
+            var syntaxTree = CSharpSyntaxTree.ParseText(cSharp);
+            var options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
+
+            var references = baseCompilation.References.Concat(new[] { baseCompilation.ToMetadataReference() });
+            var compilation = CSharpCompilation.Create("CodeGenerationTestAssembly", new[] { syntaxTree }, references, options);
+
+            var diagnostics = compilation.GetDiagnostics();
+
+            var errors = diagnostics.Where(d => d.Severity >= DiagnosticSeverity.Warning);
+
+            if (expectedErrors == null)
+            {
+                Assert.Empty(errors.Select(e => e.GetMessage()));
+            }
+            else
+            {
+                Assert.Equal(expectedErrors, errors.Select(e => e.GetMessage()));
+            }
+        }
+
+        protected RazorProjectEngine CreateEngine(CSharpCompilation compilation)
+        {
+            var references = compilation.References.Concat(new[] { compilation.ToMetadataReference() });
+
+            return CreateProjectEngine(b =>
             {
                 RazorExtensions.Register(b);
 
-                b.Features.Add(GetMetadataReferenceFeature());
+                var existingImportFeature = b.Features.OfType<IImportProjectFeature>().Single();
+                b.SetImportFeature(new NormalizedDefaultImportFeature(existingImportFeature));
 
-                if (descriptors != null)
-                {
-                    b.AddTagHelpers(descriptors);
-                }
-                else
-                {
-                    b.Features.Add(new DefaultTagHelperFeature());
-                }
+                b.Features.Add(GetMetadataReferenceFeature(references));
+                b.Features.Add(new CompilationTagHelperFeature());
             });
         }
 
-        protected RazorEngine CreateRuntimeEngine(IEnumerable<TagHelperDescriptor> descriptors = null)
+        private static IRazorEngineFeature GetMetadataReferenceFeature(IEnumerable<MetadataReference> references)
         {
-            return RazorEngine.Create(b =>
+            return new DefaultMetadataReferenceFeature()
             {
-                RazorExtensions.Register(b);
-
-                b.Features.Add(GetMetadataReferenceFeature());
-
-                if (descriptors != null)
-                {
-                    b.AddTagHelpers(descriptors);
-                }
-                else
-                {
-                    b.Features.Add(new DefaultTagHelperFeature());
-                }
-            });
-        }
-
-        protected override void OnCreatingCodeDocument(ref RazorSourceDocument source, IList<RazorSourceDocument> imports)
-        {
-            // It's important that we normalize the newlines in the default imports. The default imports will
-            // be created with Environment.NewLine, but we need to normalize to `\r\n` so that the indices
-            // are the same on xplat.
-            var buffer = new char[DefaultImports.Length];
-            DefaultImports.CopyTo(0, buffer, 0, DefaultImports.Length);
-
-            var text = new string(buffer);
-            text = Regex.Replace(text, "(?<!\r)\n", "\r\n");
-
-            imports.Add(RazorSourceDocument.Create(text, DefaultImports.FileName, DefaultImports.Encoding));
-        }
-
-        private static IEnumerable<TagHelperDescriptor> BuildDivDescriptors()
-        {
-            return new List<TagHelperDescriptor>
-            {
-                BuildDescriptor("div", "DivTagHelper", "TestAssembly"),
-                BuildDescriptor("a", "UrlResolutionTagHelper", "Microsoft.AspNetCore.Mvc.Razor")
+                References = references.ToList()
             };
         }
 
-        private static TagHelperDescriptor BuildDescriptor(
-            string tagName,
-            string typeName,
-            string assemblyName)
+        private class NormalizedDefaultImportFeature : RazorProjectEngineFeatureBase, IImportProjectFeature
         {
-            return TagHelperDescriptorBuilder.Create(typeName, assemblyName)
-                .TagMatchingRule(ruleBuilder => ruleBuilder.RequireTagName(tagName))
-                .Build();
-        }
+            private IImportProjectFeature _existingFeature;
 
-        private static IRazorEngineFeature GetMetadataReferenceFeature()
-        {
-            var currentAssembly = typeof(CodeGenerationIntegrationTest).GetTypeInfo().Assembly;
-            var dependencyContext = DependencyContext.Load(currentAssembly);
-
-            var references = dependencyContext.CompileLibraries.SelectMany(l => l.ResolveReferencePaths())
-                .Select(assemblyPath => MetadataReference.CreateFromFile(assemblyPath))
-                .ToList<MetadataReference>();
-
-            var syntaxTree = CreateTagHelperSyntaxTree();
-            var compilation = CSharpCompilation.Create(
-                "Microsoft.AspNetCore.Mvc.Razor",
-                syntaxTree,
-                references,
-                options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-            var stream = new MemoryStream();
-            var compilationResult = compilation.Emit(stream, options: new EmitOptions());
-            stream.Position = 0;
-
-            Assert.True(compilationResult.Success);
-
-            references.Add(MetadataReference.CreateFromStream(stream));
-
-            var feature = new DefaultMetadataReferenceFeature()
+            public NormalizedDefaultImportFeature(IImportProjectFeature existingFeature)
             {
-                References = references,
-            };
+                _existingFeature = existingFeature;
+            }
 
-            return feature;
-        }
+            protected override void OnInitialized()
+            {
+                _existingFeature.ProjectEngine = ProjectEngine;
+            }
 
-        private static IEnumerable<SyntaxTree> CreateTagHelperSyntaxTree()
-        {
-            var text = $@"
-            public class UrlResolutionTagHelper : {typeof(TagHelper).FullName}
-            {{
+            public IReadOnlyList<RazorProjectItem> GetImports(RazorProjectItem projectItem)
+            {
+                var normalizedImports = new List<RazorProjectItem>();
+                var imports = _existingFeature.GetImports(projectItem);
+                foreach (var import in imports)
+                {
+                    var text = string.Empty;
+                    using (var stream = import.Read())
+                    using (var reader = new StreamReader(stream))
+                    {
+                        text = reader.ReadToEnd().Trim();
+                    }
 
-            }}";
+                    // It's important that we normalize the newlines in the default imports. The default imports will
+                    // be created with Environment.NewLine, but we need to normalize to `\r\n` so that the indices
+                    // are the same on xplat.
+                    var normalizedText = Regex.Replace(text, "(?<!\r)\n", "\r\n", RegexOptions.None, TimeSpan.FromSeconds(10));
+                    var normalizedImport = new TestRazorProjectItem(import.FilePath, import.PhysicalPath, import.RelativePhysicalPath, import.BasePath)
+                    {
+                        Content = normalizedText
+                    };
 
-            return new SyntaxTree[] { CSharpSyntaxTree.ParseText(text) };
+                    normalizedImports.Add(normalizedImport);
+                }
+
+                return normalizedImports;
+            }
         }
     }
 }

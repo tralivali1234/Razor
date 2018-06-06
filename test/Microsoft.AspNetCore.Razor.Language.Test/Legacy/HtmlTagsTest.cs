@@ -8,7 +8,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
 {
     public class HtmlTagsTest : CsHtmlMarkupParserTestBase
     {
-        public static IEnumerable<string[]> VoidElementNames
+        public static IEnumerable<object[]> VoidElementNames
         {
             get
             {
@@ -36,13 +36,11 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         {
             ParseBlockTest("<p></> Bar",
                 new MarkupBlock(
-                    BlockFactory.MarkupTagBlock("<p>", AcceptedCharacters.None),
-                    BlockFactory.MarkupTagBlock("</>", AcceptedCharacters.None),
-                    Factory.Markup(" ").Accepts(AcceptedCharacters.None)),
-                new RazorError(
-                    LegacyResources.FormatParseError_MissingEndTag("p"),
-                    new SourceLocation(1, 0, 1),
-                    length: 1));
+                    BlockFactory.MarkupTagBlock("<p>", AcceptedCharactersInternal.None),
+                    BlockFactory.MarkupTagBlock("</>", AcceptedCharactersInternal.None),
+                    Factory.Markup(" ").Accepts(AcceptedCharactersInternal.None)),
+                RazorDiagnosticFactory.CreateParsing_MissingEndTag(
+                    new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"));
         }
 
         [Fact]
@@ -52,9 +50,9 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             // the contents of an HTML tag.
             ParseBlockTest("<></> Bar",
                 new MarkupBlock(
-                    BlockFactory.MarkupTagBlock("<>", AcceptedCharacters.None),
-                    BlockFactory.MarkupTagBlock("</>", AcceptedCharacters.None),
-                    Factory.Markup(" ").Accepts(AcceptedCharacters.None)));
+                    BlockFactory.MarkupTagBlock("<>", AcceptedCharactersInternal.None),
+                    BlockFactory.MarkupTagBlock("</>", AcceptedCharactersInternal.None),
+                    Factory.Markup(" ").Accepts(AcceptedCharactersInternal.None)));
         }
 
         [Fact]
@@ -62,8 +60,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         {
             ParseBlockTest("<!--Foo--> Bar",
                 new MarkupBlock(
-                    Factory.Markup("<!--Foo-->").Accepts(AcceptedCharacters.None),
-                    Factory.Markup(" ").Accepts(AcceptedCharacters.None)));
+                    BlockFactory.HtmlCommentBlock("Foo"),
+                    Factory.Markup(" ").Accepts(AcceptedCharactersInternal.None)));
         }
 
         [Fact]
@@ -71,8 +69,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         {
             ParseBlockTest("<!DOCTYPE html> foo",
                 new MarkupBlock(
-                    Factory.Markup("<!DOCTYPE html>").Accepts(AcceptedCharacters.None),
-                    Factory.Markup(" ").Accepts(AcceptedCharacters.None)));
+                    Factory.Markup("<!DOCTYPE html>").Accepts(AcceptedCharactersInternal.None),
+                    Factory.Markup(" ").Accepts(AcceptedCharactersInternal.None)));
         }
 
         [Fact]
@@ -80,8 +78,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         {
             ParseBlockTest("<?xml version=\"1.0\" ?> foo",
                 new MarkupBlock(
-                    Factory.Markup("<?xml version=\"1.0\" ?>").Accepts(AcceptedCharacters.None),
-                    Factory.Markup(" ").Accepts(AcceptedCharacters.None)));
+                    Factory.Markup("<?xml version=\"1.0\" ?>").Accepts(AcceptedCharactersInternal.None),
+                    Factory.Markup(" ").Accepts(AcceptedCharactersInternal.None)));
         }
 
         [Fact]
@@ -89,10 +87,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         {
             ParseBlockTest("<p>Foo</p> Bar",
                 new MarkupBlock(
-                    BlockFactory.MarkupTagBlock("<p>", AcceptedCharacters.None),
+                    BlockFactory.MarkupTagBlock("<p>", AcceptedCharactersInternal.None),
                     Factory.Markup("Foo"),
-                    BlockFactory.MarkupTagBlock("</p>", AcceptedCharacters.None),
-                    Factory.Markup(" ").Accepts(AcceptedCharacters.None)));
+                    BlockFactory.MarkupTagBlock("</p>", AcceptedCharactersInternal.None),
+                    Factory.Markup(" ").Accepts(AcceptedCharactersInternal.None)));
         }
 
         [Fact]
@@ -102,7 +100,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 new MarkupBlock(
                     new MarkupTagBlock(
                         Factory.MarkupTransition("<text>")),
-                    Factory.Markup("Foo").Accepts(AcceptedCharacters.None),
+                    Factory.Markup("Foo").Accepts(AcceptedCharactersInternal.None),
                     new MarkupTagBlock(
                         Factory.MarkupTransition("</text>"))));
         }
@@ -112,8 +110,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         {
             ParseBlockTest("<![CDATA[Foo]]> Bar",
                 new MarkupBlock(
-                    Factory.Markup("<![CDATA[Foo]]>").Accepts(AcceptedCharacters.None),
-                    Factory.Markup(" ").Accepts(AcceptedCharacters.None)));
+                    Factory.Markup("<![CDATA[Foo]]>").Accepts(AcceptedCharactersInternal.None),
+                    Factory.Markup(" ").Accepts(AcceptedCharactersInternal.None)));
         }
 
         [Fact]
@@ -167,41 +165,41 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         }
 
         [Theory]
-        [MemberData("VoidElementNames")]
+        [MemberData(nameof(VoidElementNames))]
         public void VoidElementFollowedByContent(string tagName)
         {
             ParseBlockTest("<" + tagName + ">foo",
                 new MarkupBlock(
-                    BlockFactory.MarkupTagBlock("<" + tagName + ">", AcceptedCharacters.None)));
+                    BlockFactory.MarkupTagBlock("<" + tagName + ">", AcceptedCharactersInternal.None)));
         }
 
         [Theory]
-        [MemberData("VoidElementNames")]
+        [MemberData(nameof(VoidElementNames))]
         public void VoidElementFollowedByOtherTag(string tagName)
         {
             ParseBlockTest("<" + tagName + "><other>foo",
                 new MarkupBlock(
-                    BlockFactory.MarkupTagBlock("<" + tagName + ">", AcceptedCharacters.None)));
+                    BlockFactory.MarkupTagBlock("<" + tagName + ">", AcceptedCharactersInternal.None)));
         }
 
         [Theory]
-        [MemberData("VoidElementNames")]
+        [MemberData(nameof(VoidElementNames))]
         public void VoidElementFollowedByCloseTag(string tagName)
         {
             ParseBlockTest("<" + tagName + "> </" + tagName + ">foo",
                 new MarkupBlock(
-                    BlockFactory.MarkupTagBlock("<" + tagName + ">", AcceptedCharacters.None),
+                    BlockFactory.MarkupTagBlock("<" + tagName + ">", AcceptedCharactersInternal.None),
                     Factory.Markup(" "),
-                    BlockFactory.MarkupTagBlock("</" + tagName + ">", AcceptedCharacters.None)));
+                    BlockFactory.MarkupTagBlock("</" + tagName + ">", AcceptedCharactersInternal.None)));
         }
 
         [Theory]
-        [MemberData("VoidElementNames")]
+        [MemberData(nameof(VoidElementNames))]
         public void IncompleteVoidElementEndTag(string tagName)
         {
             ParseBlockTest("<" + tagName + "></" + tagName,
                 new MarkupBlock(
-                    BlockFactory.MarkupTagBlock("<" + tagName + ">", AcceptedCharacters.None),
+                    BlockFactory.MarkupTagBlock("<" + tagName + ">", AcceptedCharactersInternal.None),
                     BlockFactory.MarkupTagBlock("</" + tagName)));
         }
     }

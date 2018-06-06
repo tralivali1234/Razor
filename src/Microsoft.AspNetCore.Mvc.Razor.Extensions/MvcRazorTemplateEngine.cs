@@ -3,7 +3,6 @@
 
 using System.IO;
 using System.Text;
-using Microsoft.AspNetCore.Mvc.Razor.Extensions.Internal;
 using Microsoft.AspNetCore.Razor.Language;
 
 namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
@@ -27,13 +26,9 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
             Options.DefaultImports = GetDefaultImports();
         }
 
-        /// <inheritsdoc />
         public override RazorCodeDocument CreateCodeDocument(RazorProjectItem projectItem)
         {
-            var codeDocument = base.CreateCodeDocument(projectItem);
-            codeDocument.SetRelativePath(projectItem.Path);
-
-            return codeDocument;
+            return base.CreateCodeDocument(projectItem);
         }
 
         // Internal for testing.
@@ -43,8 +38,9 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
             using (var writer = new StreamWriter(stream, Encoding.UTF8))
             {
                 writer.WriteLine("@using System");
-                writer.WriteLine("@using System.Linq");
                 writer.WriteLine("@using System.Collections.Generic");
+                writer.WriteLine("@using System.Linq");
+                writer.WriteLine("@using System.Threading.Tasks");
                 writer.WriteLine("@using Microsoft.AspNetCore.Mvc");
                 writer.WriteLine("@using Microsoft.AspNetCore.Mvc.Rendering");
                 writer.WriteLine("@using Microsoft.AspNetCore.Mvc.ViewFeatures");

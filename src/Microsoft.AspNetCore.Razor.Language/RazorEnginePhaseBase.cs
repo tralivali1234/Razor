@@ -2,10 +2,11 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Linq;
 
 namespace Microsoft.AspNetCore.Razor.Language
 {
-    internal abstract class RazorEnginePhaseBase : IRazorEnginePhase
+    public abstract class RazorEnginePhaseBase : IRazorEnginePhase
     {
         private RazorEngine _engine;
 
@@ -39,14 +40,40 @@ namespace Microsoft.AspNetCore.Razor.Language
             ExecuteCore(codeDocument);
         }
 
-        protected void ThrowForMissingDependency<T>(T value)
+        protected T GetRequiredFeature<T>()
+        {
+            if (Engine == null)
+            {
+                throw new InvalidOperationException(Resources.FormatFeatureMustBeInitialized(nameof(Engine)));
+            }
+
+            var feature = Engine.Features.OfType<T>().FirstOrDefault();
+            ThrowForMissingFeatureDependency<T>(feature);
+
+            return feature;
+        }
+
+        protected void ThrowForMissingDocumentDependency<TDocumentDependency>(TDocumentDependency value)
         {
             if (value == null)
             {
-                throw new InvalidOperationException(Resources.FormatPhaseDependencyMissing(
-                    GetType().Name,
-                    typeof(T).Name,
-                    typeof(RazorCodeDocument).Name));
+                throw new InvalidOperationException(
+                    Resources.FormatPhaseDependencyMissing(
+                        GetType().Name,
+                        typeof(TDocumentDependency).Name,
+                        typeof(RazorCodeDocument).Name));
+            }
+        }
+
+        protected void ThrowForMissingFeatureDependency<TEngineDependency>(TEngineDependency value)
+        {
+            if (value == null)
+            {
+                throw new InvalidOperationException(
+                    Resources.FormatPhaseDependencyMissing(
+                        GetType().Name,
+                        typeof(TEngineDependency).Name,
+                        typeof(RazorEngine).Name));
             }
         }
 

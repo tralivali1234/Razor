@@ -8,8 +8,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
 {
     internal class HtmlSymbol : SymbolBase<HtmlSymbolType>
     {
+        internal static readonly HtmlSymbol Hyphen = new HtmlSymbol("-", HtmlSymbolType.Text);
+
         public HtmlSymbol(string content, HtmlSymbolType type)
-            : base(content, type, RazorError.EmptyArray)
+            : base(content, type, RazorDiagnostic.EmptyArray)
         {
             if (content == null)
             {
@@ -20,7 +22,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         public HtmlSymbol(
             string content,
             HtmlSymbolType type,
-            IReadOnlyList<RazorError> errors)
+            IReadOnlyList<RazorDiagnostic> errors)
             : base(content, type, errors)
         {
             if (content == null)

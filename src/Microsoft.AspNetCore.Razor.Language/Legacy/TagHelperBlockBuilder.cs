@@ -18,9 +18,12 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         public TagHelperBlockBuilder(TagHelperBlock original)
             : base(original)
         {
-            TagName = original.TagName;
+            SourceStartTag = original.SourceStartTag;
+            SourceEndTag = original.SourceEndTag;
+            TagMode = original.TagMode;
             BindingResult = original.Binding;
             Attributes = new List<TagHelperAttributeNode>(original.Attributes);
+            TagName = original.TagName;
         }
 
         /// <summary>
@@ -44,7 +47,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             Start = start;
             BindingResult = bindingResult;
             Attributes = new List<TagHelperAttributeNode>(attributes);
-            Type = BlockKind.Tag;
+            Type = BlockKindInternal.Tag;
             ChunkGenerator = new TagHelperChunkGenerator();
         }
 
@@ -58,7 +61,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             TagName = tagName;
             TagMode = tagMode;
             Attributes = attributes;
-            Type = BlockKind.Tag;
+            Type = BlockKindInternal.Tag;
             ChunkGenerator = new TagHelperChunkGenerator();
 
             // Children is IList, no AddRange

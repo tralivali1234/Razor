@@ -3,7 +3,7 @@
 
 namespace Microsoft.AspNetCore.Razor.Language.Legacy
 {
-    public interface ITextBuffer
+    internal interface ITextBuffer
     {
         int Length { get; }
         int Position { get; set; }

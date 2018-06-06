@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.AspNetCore.Razor.Language.Legacy;
 
 namespace Microsoft.AspNetCore.Razor.Language
 {
@@ -40,12 +39,14 @@ namespace Microsoft.AspNetCore.Razor.Language
         /// retrieves catch-all <see cref="TagHelperDescriptor"/>s (descriptors that target every tag).</param>
         /// <param name="attributes">Attributes on the HTML tag.</param>
         /// <param name="parentTagName">The parent tag name of the given <paramref name="tagName"/> tag.</param>
+        /// <param name="parentIsTagHelper">Is the parent tag of the given <paramref name="tagName"/> tag a tag helper.</param>
         /// <returns><see cref="TagHelperDescriptor"/>s that apply to the given HTML tag criteria.
         /// Will return <c>null</c> if no <see cref="TagHelperDescriptor"/>s are a match.</returns>
         public TagHelperBinding GetBinding(
             string tagName,
-            IEnumerable<KeyValuePair<string, string>> attributes,
-            string parentTagName)
+            IReadOnlyList<KeyValuePair<string, string>> attributes,
+            string parentTagName,
+            bool parentIsTagHelper)
         {
             if (!string.IsNullOrEmpty(_tagHelperPrefix) &&
                 (tagName.Length <= _tagHelperPrefix.Length ||
@@ -75,20 +76,26 @@ namespace Microsoft.AspNetCore.Razor.Language
             }
 
             var tagNameWithoutPrefix = _tagHelperPrefix != null ? tagName.Substring(_tagHelperPrefix.Length) : tagName;
-            Dictionary<TagHelperDescriptor, IEnumerable<TagMatchingRule>> applicableDescriptorMappings = null;
+            var parentTagNameWithoutPrefix = parentTagName;
+            if (_tagHelperPrefix != null && parentIsTagHelper)
+            {
+                parentTagNameWithoutPrefix = parentTagName.Substring(_tagHelperPrefix.Length);
+            }
+
+            Dictionary<TagHelperDescriptor, IReadOnlyList<TagMatchingRuleDescriptor>> applicableDescriptorMappings = null;
             foreach (var descriptor in descriptors)
             {
                 var applicableRules = descriptor.TagMatchingRules.Where(
-                    rule => TagHelperMatchingConventions.SatisfiesRule(tagNameWithoutPrefix, parentTagName, attributes, rule));
+                    rule => TagHelperMatchingConventions.SatisfiesRule(tagNameWithoutPrefix, parentTagNameWithoutPrefix, attributes, rule));
 
                 if (applicableRules.Any())
                 {
                     if (applicableDescriptorMappings == null)
                     {
-                        applicableDescriptorMappings = new Dictionary<TagHelperDescriptor, IEnumerable<TagMatchingRule>>();
+                        applicableDescriptorMappings = new Dictionary<TagHelperDescriptor, IReadOnlyList<TagMatchingRuleDescriptor>>();
                     }
 
-                    applicableDescriptorMappings[descriptor] = applicableRules;
+                    applicableDescriptorMappings[descriptor] = applicableRules.ToList();
                 }
             }
 
@@ -97,9 +104,14 @@ namespace Microsoft.AspNetCore.Razor.Language
                 return null;
             }
 
-            var tagMappingResult = new TagHelperBinding(applicableDescriptorMappings);
+            var tagHelperBinding = new TagHelperBinding(
+                tagName,
+                attributes,
+                parentTagName,
+                applicableDescriptorMappings,
+                _tagHelperPrefix);
 
-            return tagMappingResult;
+            return tagHelperBinding;
         }
 
         private void Register(TagHelperDescriptor descriptor)

@@ -1,6 +1,7 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Razor.Language.Legacy;
 using Xunit;
@@ -28,7 +29,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Test
         {
             // Arrange
             var filePath = "test.cshtml";
-            var source = TestRazorSourceDocument.Create("@if (true) { @if(false) { <div>@something.</div> } }", fileName: filePath);
+            var source = TestRazorSourceDocument.Create("@if (true) { @if(false) { <div>@something.</div> } }", filePath: filePath);
 
             // Act
             var syntaxTree = RazorSyntaxTree.Parse(source);
@@ -62,8 +63,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Test
         {
             // Arrange
             var source = TestRazorSourceDocument.Create("\r\n  \r\n    @*SomeComment*@ \r\n  @tagHelperPrefix \"SomePrefix\"\r\n<html>\r\n@if (true) {\r\n @if(false) { <div>@something.</div> } \r\n}");
-            var options = RazorParserOptions.CreateDefaultOptions();
-            options.StopParsingAfterFirstDirective = true;
+            var options = RazorParserOptions.Create(builder => builder.ParseLeadingDirectives = true);
 
             // Act
             var syntaxTree = RazorSyntaxTree.Parse(source, options);
@@ -72,7 +72,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Test
             Assert.NotNull(syntaxTree);
             Assert.Equal(6, syntaxTree.Root.Children.Count);
             var block = Assert.IsType<Block>(syntaxTree.Root.Children[4]);
-            Assert.Equal(BlockKind.Directive, block.Type);
+            Assert.Equal(BlockKindInternal.Directive, block.Type);
             Assert.Empty(syntaxTree.Diagnostics);
         }
     }

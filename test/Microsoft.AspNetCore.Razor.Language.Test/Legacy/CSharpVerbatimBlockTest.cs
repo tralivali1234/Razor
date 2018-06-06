@@ -17,12 +17,12 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                            new StatementBlock(
                                Factory.CodeTransition(),
                                Factory.MetaCode("{")
-                                   .Accepts(AcceptedCharacters.None),
+                                   .Accepts(AcceptedCharactersInternal.None),
                                Factory.Code(" foo(); ")
                                    .AsStatement()
                                    .AutoCompleteWith(autoCompleteString: null),
                                Factory.MetaCode("}")
-                                   .Accepts(AcceptedCharacters.None)
+                                   .Accepts(AcceptedCharactersInternal.None)
                                ));
         }
 
@@ -31,23 +31,22 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         {
             ParseBlockTest("{@}",
                            new StatementBlock(
-                               Factory.MetaCode("{").Accepts(AcceptedCharacters.None),
+                               Factory.MetaCode("{").Accepts(AcceptedCharactersInternal.None),
                                Factory.EmptyCSharp()
                                    .AsStatement()
                                    .AutoCompleteWith(autoCompleteString: null),
                                new ExpressionBlock(
                                    Factory.CodeTransition(),
-                                   Factory.EmptyCSharp().AsImplicitExpression(KeywordSet, acceptTrailingDot: true).Accepts(AcceptedCharacters.NonWhiteSpace)
+                                   Factory.EmptyCSharp().AsImplicitExpression(KeywordSet, acceptTrailingDot: true).Accepts(AcceptedCharactersInternal.NonWhiteSpace)
                                    ),
                                Factory.EmptyCSharp().AsStatement(),
-                               Factory.MetaCode("}").Accepts(AcceptedCharacters.None)),
+                               Factory.MetaCode("}").Accepts(AcceptedCharactersInternal.None)),
                            designTime: true,
                            expectedErrors: new[]
                            {
-                               new RazorError(
-                                   LegacyResources.FormatParseError_Unexpected_Character_At_Start_Of_CodeBlock_CS("}"),
-                                   new SourceLocation(2, 0, 2),
-                                   length: 1)
+                               RazorDiagnosticFactory.CreateParsing_UnexpectedCharacterAtStartOfCodeBlock(
+                                new SourceSpan(new SourceLocation(2, 0, 2), contentLength: 1),
+                                "}")
                            });
         }
 
@@ -56,23 +55,22 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         {
             ParseBlockTest("{@.}",
                            new StatementBlock(
-                               Factory.MetaCode("{").Accepts(AcceptedCharacters.None),
+                               Factory.MetaCode("{").Accepts(AcceptedCharactersInternal.None),
                                Factory.EmptyCSharp()
                                    .AsStatement()
                                    .AutoCompleteWith(autoCompleteString: null),
                                new ExpressionBlock(
                                    Factory.CodeTransition(),
-                                   Factory.EmptyCSharp().AsImplicitExpression(KeywordSet, acceptTrailingDot: true).Accepts(AcceptedCharacters.NonWhiteSpace)
+                                   Factory.EmptyCSharp().AsImplicitExpression(KeywordSet, acceptTrailingDot: true).Accepts(AcceptedCharactersInternal.NonWhiteSpace)
                                    ),
                                Factory.Code(".").AsStatement(),
-                               Factory.MetaCode("}").Accepts(AcceptedCharacters.None)),
+                               Factory.MetaCode("}").Accepts(AcceptedCharactersInternal.None)),
                            designTime: true,
                            expectedErrors: new[]
                            {
-                               new RazorError(
-                                   LegacyResources.FormatParseError_Unexpected_Character_At_Start_Of_CodeBlock_CS("."),
-                                   new SourceLocation(2, 0, 2),
-                                   length: 1)
+                               RazorDiagnosticFactory.CreateParsing_UnexpectedCharacterAtStartOfCodeBlock(
+                                   new SourceSpan(new SourceLocation(2, 0, 2), contentLength: 1),
+                                   ".")
                            });
         }
 
@@ -83,21 +81,19 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                          + "    @" + Environment.NewLine
                          + "}",
                            new StatementBlock(
-                               Factory.MetaCode("{").Accepts(AcceptedCharacters.None),
+                               Factory.MetaCode("{").Accepts(AcceptedCharactersInternal.None),
                                Factory.Code(Environment.NewLine + "    ")
                                    .AsStatement()
                                    .AutoCompleteWith(autoCompleteString: null),
                                new ExpressionBlock(
                                    Factory.CodeTransition(),
-                                   Factory.EmptyCSharp().AsImplicitExpression(KeywordSet, acceptTrailingDot: true).Accepts(AcceptedCharacters.NonWhiteSpace)
+                                   Factory.EmptyCSharp().AsImplicitExpression(KeywordSet, acceptTrailingDot: true).Accepts(AcceptedCharactersInternal.NonWhiteSpace)
                                    ),
                                Factory.Code(Environment.NewLine).AsStatement(),
-                               Factory.MetaCode("}").Accepts(AcceptedCharacters.None)),
+                               Factory.MetaCode("}").Accepts(AcceptedCharactersInternal.None)),
                 /* designTimeParser */ true,
-                           new RazorError(
-                               LegacyResources.ParseError_Unexpected_WhiteSpace_At_Start_Of_CodeBlock_CS,
-                               new SourceLocation(6 + Environment.NewLine.Length, 1, 5),
-                               Environment.NewLine.Length));
+                           RazorDiagnosticFactory.CreateParsing_UnexpectedWhiteSpaceAtStartOfCodeBlock(
+                                new SourceSpan(new SourceLocation(6 + Environment.NewLine.Length, 1, 5), Environment.NewLine.Length)));
         }
 
         [Fact]
@@ -106,15 +102,15 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("{@foo." + Environment.NewLine
                          + "}",
                            new StatementBlock(
-                               Factory.MetaCode("{").Accepts(AcceptedCharacters.None),
+                               Factory.MetaCode("{").Accepts(AcceptedCharactersInternal.None),
                                Factory.EmptyCSharp()
                                    .AsStatement()
                                    .AutoCompleteWith(autoCompleteString: null),
                                new ExpressionBlock(
                                    Factory.CodeTransition(),
-                                   Factory.Code("foo.").AsImplicitExpression(KeywordSet, acceptTrailingDot: true).Accepts(AcceptedCharacters.NonWhiteSpace)),
+                                   Factory.Code("foo.").AsImplicitExpression(KeywordSet, acceptTrailingDot: true).Accepts(AcceptedCharactersInternal.NonWhiteSpace)),
                                Factory.Code(Environment.NewLine).AsStatement(),
-                               Factory.MetaCode("}").Accepts(AcceptedCharacters.None)));
+                               Factory.MetaCode("}").Accepts(AcceptedCharactersInternal.None)));
         }
 
         [Fact]
@@ -123,15 +119,15 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ParseBlockTest("{@foo." + Environment.NewLine
                          + "}",
                            new StatementBlock(
-                               Factory.MetaCode("{").Accepts(AcceptedCharacters.None),
+                               Factory.MetaCode("{").Accepts(AcceptedCharactersInternal.None),
                                Factory.EmptyCSharp()
                                    .AsStatement()
                                    .AutoCompleteWith(autoCompleteString: null),
                                new ExpressionBlock(
                                    Factory.CodeTransition(),
-                                   Factory.Code("foo.").AsImplicitExpression(KeywordSet, acceptTrailingDot: true).Accepts(AcceptedCharacters.NonWhiteSpace)),
+                                   Factory.Code("foo.").AsImplicitExpression(KeywordSet, acceptTrailingDot: true).Accepts(AcceptedCharactersInternal.NonWhiteSpace)),
                                Factory.Code(Environment.NewLine).AsStatement(),
-                               Factory.MetaCode("}").Accepts(AcceptedCharacters.None)),
+                               Factory.MetaCode("}").Accepts(AcceptedCharactersInternal.None)),
                            designTime: true);
         }
     }

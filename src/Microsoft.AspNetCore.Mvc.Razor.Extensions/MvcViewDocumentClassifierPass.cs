@@ -1,7 +1,6 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using Microsoft.AspNetCore.Mvc.Razor.Extensions.Internal;
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.AspNetCore.Razor.Language.Intermediate;
 
@@ -13,24 +12,29 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
 
         protected override string DocumentKind => MvcViewDocumentKind;
 
-        protected override bool IsMatch(RazorCodeDocument codeDocument, DocumentIRNode irDocument) => true;
+        protected override bool IsMatch(RazorCodeDocument codeDocument, DocumentIntermediateNode documentNode) => true;
 
         protected override void OnDocumentStructureCreated(
             RazorCodeDocument codeDocument, 
-            NamespaceDeclarationIRNode @namespace, 
-            ClassDeclarationIRNode @class, 
-            RazorMethodDeclarationIRNode method)
+            NamespaceDeclarationIntermediateNode @namespace, 
+            ClassDeclarationIntermediateNode @class, 
+            MethodDeclarationIntermediateNode method)
         {
-            var filePath = codeDocument.GetRelativePath() ?? codeDocument.Source.FileName;
-
             base.OnDocumentStructureCreated(codeDocument, @namespace, @class, method);
-            @class.Name = ClassName.GetClassNameFromPath(filePath);
-            @class.BaseType = "global::Microsoft.AspNetCore.Mvc.Razor.RazorPage<TModel>";
-            @class.AccessModifier = "public";
+
             @namespace.Content = "AspNetCore";
-            method.Name = "ExecuteAsync";
-            method.Modifiers = new[] { "async", "override" };
-            method.AccessModifier = "public";
+
+            var filePath = codeDocument.Source.RelativePath ?? codeDocument.Source.FilePath;
+            @class.ClassName = CSharpIdentifier.GetClassNameFromPath(filePath);
+            @class.BaseType = "global::Microsoft.AspNetCore.Mvc.Razor.RazorPage<TModel>";
+            @class.Modifiers.Clear();
+            @class.Modifiers.Add("public");
+
+            method.MethodName = "ExecuteAsync";
+            method.Modifiers.Clear();
+            method.Modifiers.Add("public");
+            method.Modifiers.Add("async");
+            method.Modifiers.Add("override");
             method.ReturnType = $"global::{typeof(System.Threading.Tasks.Task).FullName}";
         }
     }

@@ -22,7 +22,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             AutoCompleteAtEndOfSpan = autoCompleteAtEndOfSpan;
         }
 
-        public AutoCompleteEditHandler(Func<string, IEnumerable<ISymbol>> tokenizer, AcceptedCharacters accepted)
+        public AutoCompleteEditHandler(Func<string, IEnumerable<ISymbol>> tokenizer, AcceptedCharactersInternal accepted)
             : base(tokenizer, accepted)
         {
         }
@@ -31,16 +31,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
 
         public string AutoCompleteString { get; set; }
 
-        protected override PartialParseResult CanAcceptChange(Span target, SourceChange change)
+        protected override PartialParseResultInternal CanAcceptChange(Span target, SourceChange change)
         {
             if (((AutoCompleteAtEndOfSpan && IsAtEndOfSpan(target, change)) || IsAtEndOfFirstLine(target, change)) &&
                 change.IsInsert &&
                 ParserHelpers.IsNewLine(change.NewText) &&
                 AutoCompleteString != null)
             {
-                return PartialParseResult.Rejected | PartialParseResult.AutoCompleteBlock;
+                return PartialParseResultInternal.Rejected | PartialParseResultInternal.AutoCompleteBlock;
             }
-            return PartialParseResult.Rejected;
+            return PartialParseResultInternal.Rejected;
         }
 
         public override string ToString()

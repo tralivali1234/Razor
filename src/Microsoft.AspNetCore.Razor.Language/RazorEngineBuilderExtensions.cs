@@ -11,6 +11,7 @@ namespace Microsoft.AspNetCore.Razor.Language
     /// <summary>
     /// Extension methods to <see cref="IRazorEngineBuilder" />.
     /// </summary>
+    [Obsolete("This class is obsolete and will be removed in a future version. The recommended alternative is " + nameof(RazorProjectEngineBuilderExtensions) + ".")]
     public static class RazorEngineBuilderExtensions
     {
         /// <summary>
@@ -38,12 +39,12 @@ namespace Microsoft.AspNetCore.Razor.Language
         }
 
         /// <summary>
-        /// Adds the specified <see cref="IRuntimeTargetExtension"/>.
+        /// Adds the specified <see cref="ICodeTargetExtension"/>.
         /// </summary>
         /// <param name="builder">The <see cref="IRazorEngineBuilder"/>.</param>
-        /// <param name="extension">The <see cref="IRuntimeTargetExtension"/> to add.</param>
+        /// <param name="extension">The <see cref="ICodeTargetExtension"/> to add.</param>
         /// <returns>The <see cref="IRazorEngineBuilder"/>.</returns>
-        public static IRazorEngineBuilder AddTargetExtension(this IRazorEngineBuilder builder, IRuntimeTargetExtension extension)
+        public static IRazorEngineBuilder AddTargetExtension(this IRazorEngineBuilder builder, ICodeTargetExtension extension)
         {
             if (builder == null)
             {
@@ -84,11 +85,11 @@ namespace Microsoft.AspNetCore.Razor.Language
         /// </summary>
         /// <param name="builder">The <see cref="IRazorEngineBuilder"/>.</param>
         /// <param name="configureClass"><see cref="Action"/> invoked to configure 
-        /// <see cref="ClassDeclarationIRNode"/> during code generation.</param>
+        /// <see cref="ClassDeclarationIntermediateNode"/> during code generation.</param>
         /// <returns>The <see cref="IRazorEngineBuilder"/>.</returns>
         public static IRazorEngineBuilder ConfigureClass(
             this IRazorEngineBuilder builder, 
-            Action<RazorCodeDocument, ClassDeclarationIRNode> configureClass)
+            Action<RazorCodeDocument, ClassDeclarationIntermediateNode> configureClass)
         {
             if (builder == null)
             {

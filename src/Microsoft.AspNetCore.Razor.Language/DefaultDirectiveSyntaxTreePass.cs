@@ -1,31 +1,31 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System;
 using System.Linq;
+using Microsoft.AspNetCore.Razor.Language.Extensions;
 using Microsoft.AspNetCore.Razor.Language.Legacy;
 
 namespace Microsoft.AspNetCore.Razor.Language
 {
-    internal class DefaultDirectiveSyntaxTreePass : IRazorSyntaxTreePass
+    internal class DefaultDirectiveSyntaxTreePass : RazorEngineFeatureBase, IRazorSyntaxTreePass
     {
-        public RazorEngine Engine { get; set; }
-
         public int Order => 75;
 
         public RazorSyntaxTree Execute(RazorCodeDocument codeDocument, RazorSyntaxTree syntaxTree)
         {
-            var errorSink = new ErrorSink();
-            var sectionVerifier = new NestedSectionVerifier();
-            sectionVerifier.Verify(syntaxTree, errorSink);
-
-            if (errorSink.Errors.Count > 0)
+            if (codeDocument == null)
             {
-                // Temporary code while we're still using legacy diagnostics in the SyntaxTree.
-                var errors = errorSink.Errors.Select(error => RazorDiagnostic.Create(error));
-
-                var combinedErrors = syntaxTree.Diagnostics.Concat(errors);
-                syntaxTree = RazorSyntaxTree.Create(syntaxTree.Root, syntaxTree.Source, combinedErrors, syntaxTree.Options);
+                throw new ArgumentNullException(nameof(codeDocument));
             }
+
+            if (syntaxTree == null)
+            {
+                throw new ArgumentNullException(nameof(syntaxTree));
+            }
+
+            var sectionVerifier = new NestedSectionVerifier();
+            sectionVerifier.Verify(syntaxTree);
 
             return syntaxTree;
         }
@@ -33,11 +33,9 @@ namespace Microsoft.AspNetCore.Razor.Language
         private class NestedSectionVerifier : ParserVisitor
         {
             private int _nestedLevel;
-            private ErrorSink _errorSink;
 
-            public void Verify(RazorSyntaxTree tree, ErrorSink errorSink)
+            public void Verify(RazorSyntaxTree tree)
             {
-                _errorSink = errorSink;
                 tree.Root.Accept(this);
             }
 
@@ -45,12 +43,10 @@ namespace Microsoft.AspNetCore.Razor.Language
             {
                 if (_nestedLevel > 0)
                 {
-                    var directiveStart = block.Children.First(child => !child.IsBlock && ((Span)child).Kind == SpanKind.Transition).Start;
-                    var errorLength = /* @ */ 1 + CSharpCodeParser.SectionDirectiveDescriptor.Name.Length;
-                    _errorSink.OnError(
-                        directiveStart,
-                        LegacyResources.FormatParseError_Sections_Cannot_Be_Nested(LegacyResources.SectionExample_CS),
-                        errorLength);
+                    var directiveStart = block.Children.First(child => !child.IsBlock && ((Span)child).Kind == SpanKindInternal.Transition).Start;
+                    var errorLength = /* @ */ 1 + SectionDirective.Directive.Directive.Length;
+                    var error = RazorDiagnosticFactory.CreateParsing_SectionsCannotBeNested(new SourceSpan(directiveStart, errorLength));
+                    chunkGenerator.Diagnostics.Add(error);
                 }
 
                 _nestedLevel++;

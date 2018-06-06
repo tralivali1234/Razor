@@ -5,6 +5,7 @@ using System;
 using System.IO;
 using System.Text;
 using Microsoft.AspNetCore.Razor.Language;
+using Microsoft.AspNetCore.Razor.Language.Extensions;
 using Microsoft.AspNetCore.Razor.Language.Intermediate;
 using Xunit;
 
@@ -13,7 +14,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
     public class ModelDirectiveTest
     {
         [Fact]
-        public void ModelDirective_GetModelType_GetsTypeFromLastWellFormedDirective()
+        public void ModelDirective_GetModelType_GetsTypeFromFirstWellFormedDirective()
         {
             // Arrange
             var codeDocument = CreateDocument(@"
@@ -30,7 +31,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
             var result = ModelDirective.GetModelType(irDocument);
 
             // Assert
-            Assert.Equal("Type2", result);
+            Assert.Equal("Type1", result);
         }
 
         [Fact]
@@ -60,7 +61,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
 ");
 
             var engine = CreateEngine();
-            var pass = new ModelDirective.Pass(designTime: false)
+            var pass = new ModelDirective.Pass()
             {
                 Engine = engine,
             };
@@ -87,7 +88,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
 ");
 
             var engine = CreateEngine();
-            var pass = new ModelDirective.Pass(designTime: false)
+            var pass = new ModelDirective.Pass()
             {
                 Engine = engine,
             };
@@ -100,7 +101,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
             // Assert
             var @class = FindClassNode(irDocument);
             Assert.NotNull(@class);
-            Assert.Equal("BaseType<Type2>", @class.BaseType);
+            Assert.Equal("BaseType<Type1>", @class.BaseType);
         }
 
         [Fact]
@@ -113,7 +114,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
 ");
 
             var engine = CreateEngine();
-            var pass = new ModelDirective.Pass(designTime: false)
+            var pass = new ModelDirective.Pass()
             {
                 Engine = engine,
             };
@@ -138,7 +139,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
 ");
 
             var engine = CreateEngine();
-            var pass = new ModelDirective.Pass(designTime: false)
+            var pass = new ModelDirective.Pass()
             {
                 Engine = engine,
             };
@@ -155,15 +156,15 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
         }
 
         [Fact]
-        public void ModelDirectivePass_DesignTime_AddsTModelUsingStatement()
+        public void ModelDirectivePass_DesignTime_AddsTModelUsingDirective()
         {
             // Arrange
             var codeDocument = CreateDocument(@"
 @inherits BaseType<TModel>
 ");
 
-            var engine = CreateEngine();
-            var pass = new ModelDirective.Pass(designTime: true)
+            var engine = CreateDesignTimeEngine();
+            var pass = new ModelDirective.Pass()
             {
                 Engine = engine,
             };
@@ -179,12 +180,12 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
             Assert.Equal("BaseType<dynamic>", @class.BaseType);
 
             var @namespace = FindNamespaceNode(irDocument);
-            var usingNode = Assert.IsType<UsingStatementIRNode>(@namespace.Children[0]);
+            var usingNode = Assert.IsType<UsingDirectiveIntermediateNode>(@namespace.Children[0]);
             Assert.Equal($"TModel = global::{typeof(object).FullName}", usingNode.Content);
         }
 
         [Fact]
-        public void ModelDirectivePass_DesignTime_WithModel_AddsTModelUsingStatement()
+        public void ModelDirectivePass_DesignTime_WithModel_AddsTModelUsingDirective()
         {
             // Arrange
             var codeDocument = CreateDocument(@"
@@ -192,8 +193,8 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
 @model SomeType
 ");
 
-            var engine = CreateEngine();
-            var pass = new ModelDirective.Pass(designTime: true)
+            var engine = CreateDesignTimeEngine();
+            var pass = new ModelDirective.Pass()
             {
                 Engine = engine,
             };
@@ -209,7 +210,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
             Assert.Equal("BaseType<SomeType>", @class.BaseType);
 
             var @namespace = FindNamespaceNode(irDocument);
-            var usingNode = Assert.IsType<UsingStatementIRNode>(@namespace.Children[0]);
+            var usingNode = Assert.IsType<UsingDirectiveIntermediateNode>(@namespace.Children[0]);
             Assert.Equal($"TModel = global::System.Object", usingNode.Content);
         }
 
@@ -219,14 +220,14 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
             return RazorCodeDocument.Create(source);
         }
 
-        private ClassDeclarationIRNode FindClassNode(RazorIRNode node)
+        private ClassDeclarationIntermediateNode FindClassNode(IntermediateNode node)
         {
             var visitor = new ClassNodeVisitor();
             visitor.Visit(node);
             return visitor.Node;
         }
 
-        private NamespaceDeclarationIRNode FindNamespaceNode(RazorIRNode node)
+        private NamespaceDeclarationIntermediateNode FindNamespaceNode(IntermediateNode node)
         {
             var visitor = new NamespaceNodeVisitor();
             visitor.Visit(node);
@@ -235,14 +236,29 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
 
         private RazorEngine CreateEngine()
         {
-            return RazorEngine.Create(b =>
+            return CreateEngineCore();
+        }
+
+        private RazorEngine CreateDesignTimeEngine()
+        {
+            return CreateEngineCore(designTime: true);
+        }
+
+        private RazorEngine CreateEngineCore(bool designTime = false)
+        {
+            return RazorProjectEngine.Create(b =>
             {
                 // Notice we're not registering the ModelDirective.Pass here so we can run it on demand.
                 b.AddDirective(ModelDirective.Directive);
-            });
+
+                // There's some special interaction with the inherits directive
+                InheritsDirective.Register(b);
+
+                b.Features.Add(new DesignTimeOptionsFeature(designTime));
+            }).Engine;
         }
 
-        private DocumentIRNode CreateIRDocument(RazorEngine engine, RazorCodeDocument codeDocument)
+        private DocumentIntermediateNode CreateIRDocument(RazorEngine engine, RazorCodeDocument codeDocument)
         {
             for (var i = 0; i < engine.Phases.Count; i++)
             {
@@ -255,16 +271,23 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
                 }
             }
 
-            return codeDocument.GetIRDocument();
+            // InheritsDirectivePass needs to run before ModelDirective.
+            var pass = new InheritsDirectivePass()
+            {
+                Engine = engine
+            };
+            pass.Execute(codeDocument, codeDocument.GetDocumentIntermediateNode());
+
+            return codeDocument.GetDocumentIntermediateNode();
         }
 
-        private string GetCSharpContent(RazorIRNode node)
+        private string GetCSharpContent(IntermediateNode node)
         {
             var builder = new StringBuilder();
             for (var i = 0; i < node.Children.Count; i++)
             {
-                var child = node.Children[i] as RazorIRToken;
-                if (child.Kind == RazorIRToken.TokenKind.CSharp)
+                var child = node.Children[i] as IntermediateToken;
+                if (child.Kind == TokenKind.CSharp)
                 {
                     builder.Append(child.Content);
                 }
@@ -273,23 +296,47 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
             return builder.ToString();
         }
 
-        private class ClassNodeVisitor : RazorIRNodeWalker
+        private class ClassNodeVisitor : IntermediateNodeWalker
         {
-            public ClassDeclarationIRNode Node { get; set; }
+            public ClassDeclarationIntermediateNode Node { get; set; }
 
-            public override void VisitClass(ClassDeclarationIRNode node)
+            public override void VisitClassDeclaration(ClassDeclarationIntermediateNode node)
             {
                 Node = node;
             }
         }
 
-        private class NamespaceNodeVisitor : RazorIRNodeWalker
+        private class NamespaceNodeVisitor : IntermediateNodeWalker
         {
-            public NamespaceDeclarationIRNode Node { get; set; }
+            public NamespaceDeclarationIntermediateNode Node { get; set; }
 
-            public override void VisitNamespace(NamespaceDeclarationIRNode node)
+            public override void VisitNamespaceDeclaration(NamespaceDeclarationIntermediateNode node)
             {
                 Node = node;
+            }
+        }
+
+        private class DesignTimeOptionsFeature : IConfigureRazorParserOptionsFeature, IConfigureRazorCodeGenerationOptionsFeature
+        {
+            private bool _designTime;
+
+            public DesignTimeOptionsFeature(bool designTime)
+            {
+                _designTime = designTime;
+            }
+
+            public int Order { get; }
+
+            public RazorEngine Engine { get; set; }
+
+            public void Configure(RazorParserOptionsBuilder options)
+            {
+                options.SetDesignTime(_designTime);
+            }
+
+            public void Configure(RazorCodeGenerationOptionsBuilder options)
+            {
+                options.SetDesignTime(_designTime);
             }
         }
     }

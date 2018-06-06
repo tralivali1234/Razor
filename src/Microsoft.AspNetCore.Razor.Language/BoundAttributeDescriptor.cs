@@ -21,9 +21,13 @@ namespace Microsoft.AspNetCore.Razor.Language
 
         public bool IsIndexerStringProperty { get; protected set; }
 
+        public bool IsIndexerBooleanProperty { get; protected set; }
+
         public bool IsEnum { get; protected set; }
 
         public bool IsStringProperty { get; protected set; }
+
+        public bool IsBooleanProperty { get; protected set; }
 
         public string Name { get; protected set; }
 
@@ -43,14 +47,19 @@ namespace Microsoft.AspNetCore.Razor.Language
 
         public IReadOnlyDictionary<string, string> Metadata { get; protected set; }
 
-        public bool HasAnyErrors
+        public bool HasErrors
         {
             get
             {
-                var anyErrors = Diagnostics.Any(diagnostic => diagnostic.Severity == RazorDiagnosticSeverity.Error);
+                var errors = Diagnostics.Any(diagnostic => diagnostic.Severity == RazorDiagnosticSeverity.Error);
 
-                return anyErrors;
+                return errors;
             }
+        }
+
+        public override string ToString()
+        {
+            return DisplayName ?? base.ToString();
         }
 
         public bool Equals(BoundAttributeDescriptor other)

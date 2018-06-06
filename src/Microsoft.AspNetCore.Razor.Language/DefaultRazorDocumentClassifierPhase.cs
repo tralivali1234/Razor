@@ -16,15 +16,15 @@ namespace Microsoft.AspNetCore.Razor.Language
 
         protected override void ExecuteCore(RazorCodeDocument codeDocument)
         {
-            var irDocument = codeDocument.GetIRDocument();
-            ThrowForMissingDependency(irDocument);
+            var irDocument = codeDocument.GetDocumentIntermediateNode();
+            ThrowForMissingDocumentDependency(irDocument);
 
             foreach (var pass in Passes)
             {
                 pass.Execute(codeDocument, irDocument);
             }
 
-            codeDocument.SetIRDocument(irDocument);
+            codeDocument.SetDocumentIntermediateNode(irDocument);
         }
     }
 }

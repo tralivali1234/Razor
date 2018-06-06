@@ -7,86 +7,95 @@ using System.Linq;
 using Microsoft.AspNetCore.Razor.Language.CodeGeneration;
 using Microsoft.AspNetCore.Razor.Language.Intermediate;
 using Xunit;
-using static Microsoft.AspNetCore.Razor.Language.Intermediate.RazorIRAssert;
+using static Microsoft.AspNetCore.Razor.Language.Intermediate.IntermediateNodeAssert;
 
 namespace Microsoft.AspNetCore.Razor.Language
 {
     public class DocumentClassifierPassBaseTest
     {
+        public RazorEngine Engine
+        {
+            get
+            {
+                var projectEngine = RazorProjectEngine.Create();
+                return projectEngine.Engine;
+            }
+        }
+
         [Fact]
         public void Execute_HasDocumentKind_IgnoresDocument()
         {
             // Arrange
-            var irDocument = new DocumentIRNode()
+            var documentNode = new DocumentIntermediateNode()
             {
                 DocumentKind = "ignore",
-                Options = RazorParserOptions.CreateDefaultOptions(),
+                Options = RazorCodeGenerationOptions.CreateDefault(),
             };
 
             var pass = new TestDocumentClassifierPass();
-            pass.Engine = RazorEngine.CreateEmpty(b => { });
+            pass.Engine = Engine;
 
             // Act
-            pass.Execute(TestRazorCodeDocument.CreateEmpty(), irDocument);
+            pass.Execute(TestRazorCodeDocument.CreateEmpty(), documentNode);
 
             // Assert
-            Assert.Equal("ignore", irDocument.DocumentKind);
-            NoChildren(irDocument);
+            Assert.Equal("ignore", documentNode.DocumentKind);
+            NoChildren(documentNode);
         }
 
         [Fact]
         public void Execute_NoMatch_IgnoresDocument()
         {
             // Arrange
-            var irDocument = new DocumentIRNode()
+            var documentNode = new DocumentIntermediateNode()
             {
-                Options = RazorParserOptions.CreateDefaultOptions(),
+                Options = RazorCodeGenerationOptions.CreateDefault(),
             };
 
             var pass = new TestDocumentClassifierPass()
             {
-                Engine = RazorEngine.CreateEmpty(b => { }),
+                Engine = Engine,
                 ShouldMatch = false,
             };
 
             // Act
-            pass.Execute(TestRazorCodeDocument.CreateEmpty(), irDocument);
+            pass.Execute(TestRazorCodeDocument.CreateEmpty(), documentNode);
 
             // Assert
-            Assert.Null(irDocument.DocumentKind);
-            NoChildren(irDocument);
+            Assert.Null(documentNode.DocumentKind);
+            NoChildren(documentNode);
         }
 
         [Fact]
         public void Execute_Match_AddsGlobalTargetExtensions()
         {
             // Arrange
-            var irDocument = new DocumentIRNode()
+            var documentNode = new DocumentIntermediateNode()
             {
-                Options = RazorParserOptions.CreateDefaultOptions(),
+                Options = RazorCodeGenerationOptions.CreateDefault(),
             };
 
-            var expected = new IRuntimeTargetExtension[]
+            var expected = new ICodeTargetExtension[]
             {
                 new MyExtension1(),
                 new MyExtension2(),
             };
 
             var pass = new TestDocumentClassifierPass();
-            pass.Engine = RazorEngine.CreateEmpty(b =>
+            pass.Engine = RazorProjectEngine.CreateEmpty(b =>
             {
                 for (var i = 0; i < expected.Length; i++)
                 {
                     b.AddTargetExtension(expected[i]);
                 }
-            });
+            }).Engine;
 
-            IRuntimeTargetExtension[] extensions = null;
+            ICodeTargetExtension[] extensions = null;
 
-            pass.RuntimeTargetCallback = (builder) => extensions = builder.TargetExtensions.ToArray();
+            pass.CodeTargetCallback = (builder) => extensions = builder.TargetExtensions.ToArray();
 
             // Act
-            pass.Execute(TestRazorCodeDocument.CreateEmpty(), irDocument);
+            pass.Execute(TestRazorCodeDocument.CreateEmpty(), documentNode);
 
             // Assert
             Assert.Equal(expected, extensions);
@@ -96,211 +105,159 @@ namespace Microsoft.AspNetCore.Razor.Language
         public void Execute_Match_SetsDocumentType_AndCreatesStructure()
         {
             // Arrange
-            var irDocument = new DocumentIRNode()
+            var documentNode = new DocumentIntermediateNode()
             {
-                Options = RazorParserOptions.CreateDefaultOptions(),
+                Options = RazorCodeGenerationOptions.CreateDefault(),
             };
 
             var pass = new TestDocumentClassifierPass();
-            pass.Engine = RazorEngine.CreateEmpty(b => { });
+            pass.Engine = Engine;
 
             // Act
-            pass.Execute(TestRazorCodeDocument.CreateEmpty(), irDocument);
+            pass.Execute(TestRazorCodeDocument.CreateEmpty(), documentNode);
 
             // Assert
-            Assert.Equal("test", irDocument.DocumentKind);
-            Assert.NotNull(irDocument.Target);
+            Assert.Equal("test", documentNode.DocumentKind);
+            Assert.NotNull(documentNode.Target);
 
-            var @namespace = SingleChild<NamespaceDeclarationIRNode>(irDocument);
-            var @class = SingleChild<ClassDeclarationIRNode>(@namespace);
-            var method = SingleChild<RazorMethodDeclarationIRNode>(@class);
+            var @namespace = SingleChild<NamespaceDeclarationIntermediateNode>(documentNode);
+            var @class = SingleChild<ClassDeclarationIntermediateNode>(@namespace);
+            var method = SingleChild<MethodDeclarationIntermediateNode>(@class);
             NoChildren(method);
-        }
-
-        [Fact]
-        public void Execute_AddsCheckumFirstToDocument()
-        {
-            // Arrange
-            var irDocument = new DocumentIRNode()
-            {
-                Options = RazorParserOptions.CreateDefaultOptions(),
-            };
-
-            var builder = RazorIRBuilder.Create(irDocument);
-            builder.Add(new ChecksumIRNode());
-
-            var pass = new TestDocumentClassifierPass();
-            pass.Engine = RazorEngine.CreateEmpty(b => { });
-
-            // Act
-            pass.Execute(TestRazorCodeDocument.CreateEmpty(), irDocument);
-
-            // Assert
-            Children(
-                irDocument,
-                n => Assert.IsType<ChecksumIRNode>(n),
-                n => Assert.IsType<NamespaceDeclarationIRNode>(n));
         }
 
         [Fact]
         public void Execute_AddsUsingsToNamespace()
         {
             // Arrange
-            var irDocument = new DocumentIRNode()
+            var documentNode = new DocumentIntermediateNode()
             {
-                Options = RazorParserOptions.CreateDefaultOptions(),
+                Options = RazorCodeGenerationOptions.CreateDefault(),
             };
 
-            var builder = RazorIRBuilder.Create(irDocument);
-            builder.Add(new UsingStatementIRNode());
+            var builder = IntermediateNodeBuilder.Create(documentNode);
+            builder.Add(new UsingDirectiveIntermediateNode());
 
             var pass = new TestDocumentClassifierPass();
-            pass.Engine = RazorEngine.CreateEmpty(b => { });
+            pass.Engine = Engine;
 
             // Act
-            pass.Execute(TestRazorCodeDocument.CreateEmpty(), irDocument);
+            pass.Execute(TestRazorCodeDocument.CreateEmpty(), documentNode);
 
             // Assert
-            var @namespace = SingleChild<NamespaceDeclarationIRNode>(irDocument);
+            var @namespace = SingleChild<NamespaceDeclarationIntermediateNode>(documentNode);
             Children(
                 @namespace,
-                n => Assert.IsType<UsingStatementIRNode>(n),
-                n => Assert.IsType<ClassDeclarationIRNode>(n));
-        }
-
-        [Fact]
-        public void Execute_AddsTagHelperFieldsToClass()
-        {
-            // Arrange
-            var irDocument = new DocumentIRNode()
-            {
-                Options = RazorParserOptions.CreateDefaultOptions(),
-            };
-
-            var builder = RazorIRBuilder.Create(irDocument);
-            builder.Add(new DeclareTagHelperFieldsIRNode());
-
-            var pass = new TestDocumentClassifierPass();
-            pass.Engine = RazorEngine.CreateEmpty(b => { });
-
-            // Act
-            pass.Execute(TestRazorCodeDocument.CreateEmpty(), irDocument);
-
-            // Assert
-            var @namespace = SingleChild<NamespaceDeclarationIRNode>(irDocument);
-            var @class = SingleChild<ClassDeclarationIRNode>(@namespace);
-            Children(
-                @class,
-                n => Assert.IsType<DeclareTagHelperFieldsIRNode>(n),
-                n => Assert.IsType<RazorMethodDeclarationIRNode>(n));
+                n => Assert.IsType<UsingDirectiveIntermediateNode>(n),
+                n => Assert.IsType<ClassDeclarationIntermediateNode>(n));
         }
 
         [Fact]
         public void Execute_AddsTheRestToMethod()
         {
             // Arrange
-            var irDocument = new DocumentIRNode()
+            var documentNode = new DocumentIntermediateNode()
             {
-                Options = RazorParserOptions.CreateDefaultOptions(),
+                Options = RazorCodeGenerationOptions.CreateDefault(),
             };
 
-            var builder = RazorIRBuilder.Create(irDocument);
-            builder.Add(new HtmlContentIRNode());
-            builder.Add(new CSharpStatementIRNode());
+            var builder = IntermediateNodeBuilder.Create(documentNode);
+            builder.Add(new HtmlContentIntermediateNode());
+            builder.Add(new CSharpCodeIntermediateNode());
 
             var pass = new TestDocumentClassifierPass();
-            pass.Engine = RazorEngine.CreateEmpty(b => { });
+            pass.Engine = Engine;
 
             // Act
-            pass.Execute(TestRazorCodeDocument.CreateEmpty(), irDocument);
+            pass.Execute(TestRazorCodeDocument.CreateEmpty(), documentNode);
 
             // Assert
-            var @namespace = SingleChild<NamespaceDeclarationIRNode>(irDocument);
-            var @class = SingleChild<ClassDeclarationIRNode>(@namespace);
-            var method = SingleChild<RazorMethodDeclarationIRNode>(@class);
+            var @namespace = SingleChild<NamespaceDeclarationIntermediateNode>(documentNode);
+            var @class = SingleChild<ClassDeclarationIntermediateNode>(@namespace);
+            var method = SingleChild<MethodDeclarationIntermediateNode>(@class);
             Children(
                 method,
-                n => Assert.IsType<HtmlContentIRNode>(n),
-                n => Assert.IsType<CSharpStatementIRNode>(n));
+                n => Assert.IsType<HtmlContentIntermediateNode>(n),
+                n => Assert.IsType<CSharpCodeIntermediateNode>(n));
         }
 
         [Fact]
         public void Execute_CanInitializeDefaults()
         {
             // Arrange
-            var irDocument = new DocumentIRNode()
+            var documentNode = new DocumentIntermediateNode()
             {
-                Options = RazorParserOptions.CreateDefaultOptions(),
+                Options = RazorCodeGenerationOptions.CreateDefault(),
             };
 
-            var builder = RazorIRBuilder.Create(irDocument);
-            builder.Add(new HtmlContentIRNode());
-            builder.Add(new CSharpStatementIRNode());
+            var builder = IntermediateNodeBuilder.Create(documentNode);
+            builder.Add(new HtmlContentIntermediateNode());
+            builder.Add(new CSharpCodeIntermediateNode());
 
             var pass = new TestDocumentClassifierPass()
             {
-                Engine = RazorEngine.CreateEmpty(b => { }),
+                Engine = Engine,
                 Namespace = "TestNamespace",
                 Class = "TestClass",
                 Method = "TestMethod",
             };
 
             // Act
-            pass.Execute(TestRazorCodeDocument.CreateEmpty(), irDocument);
+            pass.Execute(TestRazorCodeDocument.CreateEmpty(), documentNode);
 
             // Assert
-            var @namespace = SingleChild<NamespaceDeclarationIRNode>(irDocument);
+            var @namespace = SingleChild<NamespaceDeclarationIntermediateNode>(documentNode);
             Assert.Equal("TestNamespace", @namespace.Content);
 
-            var @class = SingleChild<ClassDeclarationIRNode>(@namespace);
-            Assert.Equal("TestClass", @class.Name);
+            var @class = SingleChild<ClassDeclarationIntermediateNode>(@namespace);
+            Assert.Equal("TestClass", @class.ClassName);
 
-            var method = SingleChild<RazorMethodDeclarationIRNode>(@class);
-            Assert.Equal("TestMethod", method.Name);
+            var method = SingleChild<MethodDeclarationIntermediateNode>(@class);
+            Assert.Equal("TestMethod", method.MethodName);
         }
 
         [Fact]
         public void Execute_AddsPrimaryAnnotations()
         {
             // Arrange
-            var irDocument = new DocumentIRNode()
+            var documentNode = new DocumentIntermediateNode()
             {
-                Options = RazorParserOptions.CreateDefaultOptions(),
+                Options = RazorCodeGenerationOptions.CreateDefault(),
             };
 
-            var builder = RazorIRBuilder.Create(irDocument);
-            builder.Add(new HtmlContentIRNode());
-            builder.Add(new CSharpStatementIRNode());
+            var builder = IntermediateNodeBuilder.Create(documentNode);
+            builder.Add(new HtmlContentIntermediateNode());
+            builder.Add(new CSharpCodeIntermediateNode());
 
             var pass = new TestDocumentClassifierPass()
             {
-                Engine = RazorEngine.CreateEmpty(b => { }),
+                Engine = Engine,
                 Namespace = "TestNamespace",
                 Class = "TestClass",
                 Method = "TestMethod",
             };
 
             // Act
-            pass.Execute(TestRazorCodeDocument.CreateEmpty(), irDocument);
+            pass.Execute(TestRazorCodeDocument.CreateEmpty(), documentNode);
 
             // Assert
-            var @namespace = SingleChild<NamespaceDeclarationIRNode>(irDocument);
+            var @namespace = SingleChild<NamespaceDeclarationIntermediateNode>(documentNode);
             AnnotationEquals(@namespace, CommonAnnotations.PrimaryNamespace);
 
-            var @class = SingleChild<ClassDeclarationIRNode>(@namespace);
+            var @class = SingleChild<ClassDeclarationIntermediateNode>(@namespace);
             AnnotationEquals(@class, CommonAnnotations.PrimaryClass);
 
-            var method = SingleChild<RazorMethodDeclarationIRNode>(@class);
+            var method = SingleChild<MethodDeclarationIntermediateNode>(@class);
             AnnotationEquals(method, CommonAnnotations.PrimaryMethod);
         }
 
         private class TestDocumentClassifierPass : DocumentClassifierPassBase
         {
-            public override int Order => RazorIRPass.DefaultFeatureOrder;
+            public override int Order => IntermediateNodePassBase.DefaultFeatureOrder;
 
             public bool ShouldMatch { get; set; } = true;
 
-            public Action<IRuntimeTargetBuilder> RuntimeTargetCallback { get; set; }
+            public Action<CodeTargetBuilder> CodeTargetCallback { get; set; }
 
             public string Namespace { get; set;  }
 
@@ -310,33 +267,33 @@ namespace Microsoft.AspNetCore.Razor.Language
 
             protected override string DocumentKind => "test";
 
-            protected override bool IsMatch(RazorCodeDocument codeDocument, DocumentIRNode irDocument)
+            protected override bool IsMatch(RazorCodeDocument codeDocument, DocumentIntermediateNode documentNode)
             {
                 return ShouldMatch;
             }
 
             protected override void OnDocumentStructureCreated(
                 RazorCodeDocument codeDocument,
-                NamespaceDeclarationIRNode @namespace,
-                ClassDeclarationIRNode @class,
-                RazorMethodDeclarationIRNode method)
+                NamespaceDeclarationIntermediateNode @namespace,
+                ClassDeclarationIntermediateNode @class,
+                MethodDeclarationIntermediateNode method)
             {
                 @namespace.Content = Namespace;
-                @class.Name = Class;
-                @method.Name = Method;
+                @class.ClassName = Class;
+                @method.MethodName = Method;
             }
 
-            protected override void ConfigureTarget(IRuntimeTargetBuilder builder)
+            protected override void ConfigureTarget(CodeTargetBuilder builder)
             {
-                RuntimeTargetCallback?.Invoke(builder);
+                CodeTargetCallback?.Invoke(builder);
             }
         }
 
-        private class MyExtension1 : IRuntimeTargetExtension
+        private class MyExtension1 : ICodeTargetExtension
         {
         }
 
-        private class MyExtension2 : IRuntimeTargetExtension
+        private class MyExtension2 : ICodeTargetExtension
         {
         }
     }

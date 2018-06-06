@@ -1,13 +1,12 @@
 Document - 
-    Checksum - 
+    RazorCompiledItemAttribute - 
     NamespaceDeclaration -  - Microsoft.AspNetCore.Razor.Language.IntegrationTests.TestFiles
-        UsingStatement -  - System
-        UsingStatement -  - System.Threading.Tasks
+        RazorSourceChecksumAttribute - 
         ClassDeclaration -  - public - TestFiles_IntegrationTests_CodeGenerationIntegrationTest_EmptyImplicitExpressionInCode_Runtime -  - 
-            RazorMethodDeclaration -  - public - async - System.Threading.Tasks.Task - ExecuteAsync
-                CSharpStatement - (2:0,2 [6] EmptyImplicitExpressionInCode.cshtml)
-                    RazorIRToken - (2:0,2 [6] EmptyImplicitExpressionInCode.cshtml) - CSharp - \n    
+            MethodDeclaration -  - public async - System.Threading.Tasks.Task - ExecuteAsync
+                CSharpCode - (2:0,2 [6] EmptyImplicitExpressionInCode.cshtml)
+                    IntermediateToken - (2:0,2 [6] EmptyImplicitExpressionInCode.cshtml) - CSharp - \n    
                 CSharpExpression - (9:1,5 [0] EmptyImplicitExpressionInCode.cshtml)
-                    RazorIRToken - (9:1,5 [0] EmptyImplicitExpressionInCode.cshtml) - CSharp - 
-                CSharpStatement - (9:1,5 [2] EmptyImplicitExpressionInCode.cshtml)
-                    RazorIRToken - (9:1,5 [2] EmptyImplicitExpressionInCode.cshtml) - CSharp - \n
+                    IntermediateToken - (9:1,5 [0] EmptyImplicitExpressionInCode.cshtml) - CSharp - 
+                CSharpCode - (9:1,5 [2] EmptyImplicitExpressionInCode.cshtml)
+                    IntermediateToken - (9:1,5 [2] EmptyImplicitExpressionInCode.cshtml) - CSharp - \n

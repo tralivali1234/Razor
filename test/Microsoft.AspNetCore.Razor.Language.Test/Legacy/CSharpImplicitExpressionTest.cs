@@ -14,43 +14,33 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         {
             get
             {
-                var noErrors = new RazorError[0];
-                Func<int, RazorError[]> missingEndParenError = (index) =>
-                    new RazorError[1]
+                var noErrors = new RazorDiagnostic[0];
+                Func<int, RazorDiagnostic[]> missingEndBracketError = (index) =>
+                    new RazorDiagnostic[1]
                     {
-                        new RazorError(
-                            "An opening \"(\" is missing the corresponding closing \")\".",
-                            new SourceLocation(index, 0, index),
-                            length: 1)
-                    };
-                Func<int, RazorError[]> missingEndBracketError = (index) =>
-                    new RazorError[1]
-                    {
-                        new RazorError(
-                            "An opening \"[\" is missing the corresponding closing \"]\".",
-                            new SourceLocation(index, 0, index),
-                            length: 1)
+                        RazorDiagnosticFactory.CreateParsing_ExpectedCloseBracketBeforeEOF(
+                            new SourceSpan(new SourceLocation(index, 0, index), contentLength: 1), "[", "]"),
                     };
 
                 // implicitExpression, expectedImplicitExpression, acceptedCharacters, expectedErrors
-                return new TheoryData<string, string, AcceptedCharacters, RazorError[]>
+                return new TheoryData<string, string, AcceptedCharactersInternal, RazorDiagnostic[]>
                 {
-                    { "val??[", "val", AcceptedCharacters.NonWhiteSpace, noErrors },
-                    { "val??[0", "val", AcceptedCharacters.NonWhiteSpace, noErrors },
-                    { "val?[", "val?[", AcceptedCharacters.Any, missingEndBracketError(5) },
-                    { "val?(", "val", AcceptedCharacters.NonWhiteSpace, noErrors },
-                    { "val?[more", "val?[more", AcceptedCharacters.Any, missingEndBracketError(5) },
-                    { "val?[0]", "val?[0]", AcceptedCharacters.NonWhiteSpace, noErrors },
-                    { "val?[<p>", "val?[", AcceptedCharacters.Any, missingEndBracketError(5) },
-                    { "val?[more.<p>", "val?[more.", AcceptedCharacters.Any, missingEndBracketError(5) },
-                    { "val??[more<p>", "val", AcceptedCharacters.NonWhiteSpace, noErrors },
-                    { "val?[-1]?", "val?[-1]", AcceptedCharacters.NonWhiteSpace, noErrors },
-                    { "val?[abc]?[def", "val?[abc]?[def", AcceptedCharacters.Any, missingEndBracketError(11) },
-                    { "val?[abc]?[2]", "val?[abc]?[2]", AcceptedCharacters.NonWhiteSpace, noErrors },
-                    { "val?[abc]?.more?[def]", "val?[abc]?.more?[def]", AcceptedCharacters.NonWhiteSpace, noErrors },
-                    { "val?[abc]?.more?.abc", "val?[abc]?.more?.abc", AcceptedCharacters.NonWhiteSpace, noErrors },
-                    { "val?[null ?? true]", "val?[null ?? true]", AcceptedCharacters.NonWhiteSpace, noErrors },
-                    { "val?[abc?.gef?[-1]]", "val?[abc?.gef?[-1]]", AcceptedCharacters.NonWhiteSpace, noErrors },
+                    { "val??[", "val", AcceptedCharactersInternal.NonWhiteSpace, noErrors },
+                    { "val??[0", "val", AcceptedCharactersInternal.NonWhiteSpace, noErrors },
+                    { "val?[", "val?[", AcceptedCharactersInternal.Any, missingEndBracketError(5) },
+                    { "val?(", "val", AcceptedCharactersInternal.NonWhiteSpace, noErrors },
+                    { "val?[more", "val?[more", AcceptedCharactersInternal.Any, missingEndBracketError(5) },
+                    { "val?[0]", "val?[0]", AcceptedCharactersInternal.NonWhiteSpace, noErrors },
+                    { "val?[<p>", "val?[", AcceptedCharactersInternal.Any, missingEndBracketError(5) },
+                    { "val?[more.<p>", "val?[more.", AcceptedCharactersInternal.Any, missingEndBracketError(5) },
+                    { "val??[more<p>", "val", AcceptedCharactersInternal.NonWhiteSpace, noErrors },
+                    { "val?[-1]?", "val?[-1]", AcceptedCharactersInternal.NonWhiteSpace, noErrors },
+                    { "val?[abc]?[def", "val?[abc]?[def", AcceptedCharactersInternal.Any, missingEndBracketError(11) },
+                    { "val?[abc]?[2]", "val?[abc]?[2]", AcceptedCharactersInternal.NonWhiteSpace, noErrors },
+                    { "val?[abc]?.more?[def]", "val?[abc]?.more?[def]", AcceptedCharactersInternal.NonWhiteSpace, noErrors },
+                    { "val?[abc]?.more?.abc", "val?[abc]?.more?.abc", AcceptedCharactersInternal.NonWhiteSpace, noErrors },
+                    { "val?[null ?? true]", "val?[null ?? true]", AcceptedCharactersInternal.NonWhiteSpace, noErrors },
+                    { "val?[abc?.gef?[-1]]", "val?[abc?.gef?[-1]]", AcceptedCharactersInternal.NonWhiteSpace, noErrors },
                 };
             }
         }
@@ -67,8 +57,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ImplicitExpressionTest(
                 implicitExpresison,
                 expectedImplicitExpression,
-                (AcceptedCharacters)acceptedCharacters,
-                (RazorError[])expectedErrors);
+                (AcceptedCharactersInternal)acceptedCharacters,
+                (RazorDiagnostic[])expectedErrors);
         }
 
         public static TheoryData NullConditionalOperatorData_Dot
@@ -116,7 +106,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                    Factory.CodeTransition(),
                                    Factory.Code("foo")
                                        .AsImplicitExpression(CSharpCodeParser.DefaultKeywords, acceptTrailingDot: true)
-                                       .Accepts(AcceptedCharacters.NonWhiteSpace)),
+                                       .Accepts(AcceptedCharactersInternal.NonWhiteSpace)),
                                Factory.Code(" }").AsStatement()));
         }
 
@@ -134,11 +124,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                Factory.CodeTransition(),
                                Factory.EmptyCSharp()
                                    .AsImplicitExpression(KeywordSet)
-                                   .Accepts(AcceptedCharacters.NonWhiteSpace)),
-                           new RazorError(
-                               LegacyResources.FormatParseError_Unexpected_Character_At_Start_Of_CodeBlock_CS("/"),
-                               new SourceLocation(1, 0, 1),
-                               length: 1));
+                                   .Accepts(AcceptedCharactersInternal.NonWhiteSpace)),
+                           RazorDiagnosticFactory.CreateParsing_UnexpectedCharacterAtStartOfCodeBlock(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1),
+                                "/"));
         }
 
         [Fact]
@@ -149,11 +138,9 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                Factory.CodeTransition(),
                                Factory.EmptyCSharp()
                                    .AsImplicitExpression(KeywordSet)
-                                   .Accepts(AcceptedCharacters.NonWhiteSpace)),
-                           new RazorError(
-                               LegacyResources.ParseError_Unexpected_EndOfFile_At_Start_Of_CodeBlock,
-                               new SourceLocation(1, 0, 1),
-                               length: 1));
+                                   .Accepts(AcceptedCharactersInternal.NonWhiteSpace)),
+                           RazorDiagnosticFactory.CreateParsing_UnexpectedEndOfFileAtStartOfCodeBlock(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1)));
         }
 
         [Fact]
@@ -252,11 +239,9 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         {
             ImplicitExpressionTest(
                 "foo(()", "foo(()",
-                acceptedCharacters: AcceptedCharacters.Any,
-                errors: new RazorError(
-                    LegacyResources.FormatParseError_Expected_CloseBracket_Before_EOF("(", ")"),
-                    new SourceLocation(4, 0, 4),
-                    length: 1));
+                acceptedCharacters: AcceptedCharactersInternal.Any,
+                errors: RazorDiagnosticFactory.CreateParsing_ExpectedCloseBracketBeforeEOF(
+                    new SourceSpan(new SourceLocation(4, 0, 4), contentLength: 1), "(", ")"));
         }
 
         [Fact]
@@ -290,7 +275,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                Factory.CodeTransition(),
                                Factory.Code(expr)
                                    .AsImplicitExpression(KeywordSet)
-                                   .Accepts(AcceptedCharacters.NonWhiteSpace)
+                                   .Accepts(AcceptedCharactersInternal.NonWhiteSpace)
                                ));
         }
     }

@@ -35,10 +35,10 @@ namespace RazorPageGenerator.Test
         {
             // Arrange
             var projectDirectory = TestProject.GetProjectDirectory(GetType());
-
+            var projectEngine = Program.CreateProjectEngine("Microsoft.AspNetCore.TestGenerated", projectDirectory);
 
             // Act
-            var results = Program.MainCore("Microsoft.AspNetCore.TestGenerated", projectDirectory);
+            var results = Program.MainCore(projectEngine, projectDirectory);
 
             // Assert
             Assert.Collection(results,

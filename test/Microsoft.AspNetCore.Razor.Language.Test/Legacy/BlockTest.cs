@@ -9,11 +9,67 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
     public class BlockTest
     {
         [Fact]
+        public void ChildChanged_NotifiesParent()
+        {
+            // Arrange
+            var spanBuilder = new SpanBuilder(SourceLocation.Zero);
+            spanBuilder.Accept(new HtmlSymbol("hello", HtmlSymbolType.Text));
+            var span = spanBuilder.Build();
+            var blockBuilder = new BlockBuilder()
+            {
+                Type = BlockKindInternal.Markup,
+            };
+            blockBuilder.Children.Add(span);
+            var childBlock = blockBuilder.Build();
+            blockBuilder = new BlockBuilder()
+            {
+                Type = BlockKindInternal.Markup,
+            };
+            blockBuilder.Children.Add(childBlock);
+            var parentBlock = blockBuilder.Build();
+            var originalBlockLength = parentBlock.Length;
+            spanBuilder = new SpanBuilder(SourceLocation.Zero);
+            spanBuilder.Accept(new HtmlSymbol("hi", HtmlSymbolType.Text));
+            span.ReplaceWith(spanBuilder);
+            
+            // Wire up parents now so we can re-trigger ChildChanged to cause cache refresh.
+            span.Parent = childBlock;
+            childBlock.Parent = parentBlock;
+
+            // Act
+            childBlock.ChildChanged();
+
+            // Assert
+            Assert.Equal(5, originalBlockLength);
+            Assert.Equal(2, parentBlock.Length);
+        }
+
+        [Fact]
+        public void Clone_ClonesBlock()
+        {
+            // Arrange
+            var blockBuilder = new BlockBuilder()
+            {
+                ChunkGenerator = new DynamicAttributeBlockChunkGenerator(new LocationTagged<string>("class=\"", SourceLocation.Zero), 0, 0, 0),
+                Type = BlockKindInternal.Expression,
+            };
+            blockBuilder.Children.Add(new SpanBuilder(new SourceLocation(1, 2, 3)).Build());
+            var block = blockBuilder.Build();
+
+            // Act
+            var copy = (Block)block.Clone();
+
+            // Assert
+            ParserTestBase.EvaluateParseTree(copy, block);
+            Assert.NotSame(block, copy);
+        }
+
+        [Fact]
         public void ConstructorWithBlockBuilderSetsParent()
         {
             // Arrange
-            var builder = new BlockBuilder() { Type = BlockKind.Comment };
-            var span = new SpanBuilder(SourceLocation.Undefined) { Kind = SpanKind.Code }.Build();
+            var builder = new BlockBuilder() { Type = BlockKindInternal.Comment };
+            var span = new SpanBuilder(SourceLocation.Undefined) { Kind = SpanKindInternal.Code }.Build();
             builder.Children.Add(span);
 
             // Act
@@ -30,7 +86,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             var expected = new ExpressionChunkGenerator();
             var builder = new BlockBuilder()
             {
-                Type = BlockKind.Helper,
+                Type = BlockKindInternal.Statement,
                 ChunkGenerator = expected
             };
 
@@ -45,10 +101,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         public void ConstructorTransfersChildrenFromBlockBuilder()
         {
             // Arrange
-            var expected = new SpanBuilder(SourceLocation.Undefined) { Kind = SpanKind.Code }.Build();
+            var expected = new SpanBuilder(SourceLocation.Undefined) { Kind = SpanKindInternal.Code }.Build();
             var builder = new BlockBuilder()
             {
-                Type = BlockKind.Functions
+                Type = BlockKindInternal.Statement
             };
             builder.Children.Add(expected);
 

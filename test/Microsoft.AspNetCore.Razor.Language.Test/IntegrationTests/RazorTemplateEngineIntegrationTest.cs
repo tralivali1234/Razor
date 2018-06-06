@@ -1,7 +1,7 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using System.IO;
+using Microsoft.AspNetCore.Razor.Language.Intermediate;
 using Xunit;
 
 namespace Microsoft.AspNetCore.Razor.Language.IntegrationTests
@@ -12,39 +12,35 @@ namespace Microsoft.AspNetCore.Razor.Language.IntegrationTests
         public void GenerateCodeWithDefaults()
         {
             // Arrange
-            var filePath = Path.Combine(TestProjectRoot, $"{Filename}.cshtml");
-            var content = File.ReadAllText(filePath);
-            var projectItem = new TestRazorProjectItem($"{Filename}.cshtml", "")
+            var fileSystem = new DefaultRazorProjectFileSystem(TestProjectRoot);
+            var razorEngine = RazorProjectEngine.Create(engine =>
             {
-                Content = content,
-            };
-            var project = new TestRazorProject(new[]{ projectItem });
-            var razorEngine = RazorEngine.Create();
-            var templateEngine = new RazorTemplateEngine(razorEngine, project);
+                engine.Features.Add(new SuppressChecksumOptionsFeature());
+            }).Engine;
+            var templateEngine = new RazorTemplateEngine(razorEngine, fileSystem);
 
             // Act
-            var resultcSharpDocument = templateEngine.GenerateCode(projectItem.Path);
+            var cSharpDocument = templateEngine.GenerateCode($"{FileName}.cshtml");
 
             // Assert
-            AssertCSharpDocumentMatchesBaseline(resultcSharpDocument);
+            AssertCSharpDocumentMatchesBaseline(cSharpDocument);
         }
 
         [Fact]
         public void GenerateCodeWithBaseType()
         {
             // Arrange
-            var filePath = Path.Combine(TestProjectRoot, $"{Filename}.cshtml");
-            var content = File.ReadAllText(filePath);
-            var projectItem = new TestRazorProjectItem($"{Filename}.cshtml", "")
+            var fileSystem = new DefaultRazorProjectFileSystem(TestProjectRoot);
+            var razorEngine = RazorProjectEngine.Create(engine =>
             {
-                Content = content,
-            };
-            var project = new TestRazorProject(new[] { projectItem });
-            var razorEngine = RazorEngine.Create(engine => engine.SetBaseType("MyBaseType"));
-            var templateEngine = new RazorTemplateEngine(razorEngine, project);
+                engine.Features.Add(new SuppressChecksumOptionsFeature());
+
+                engine.SetBaseType("MyBaseType");
+            }).Engine;
+            var templateEngine = new RazorTemplateEngine(razorEngine, fileSystem);
 
             // Act
-            var cSharpDocument = templateEngine.GenerateCode(projectItem.Path);
+            var cSharpDocument = templateEngine.GenerateCode($"{FileName}.cshtml");
 
             // Assert
             AssertCSharpDocumentMatchesBaseline(cSharpDocument);
@@ -54,31 +50,31 @@ namespace Microsoft.AspNetCore.Razor.Language.IntegrationTests
         public void GenerateCodeWithConfigureClass()
         {
             // Arrange
-            var filePath = Path.Combine(TestProjectRoot, $"{Filename}.cshtml");
-            var content = File.ReadAllText(filePath);
-            var projectItem = new TestRazorProjectItem($"{Filename}.cshtml", "")
+            var fileSystem = new DefaultRazorProjectFileSystem(TestProjectRoot);
+            var razorEngine = RazorProjectEngine.Create(engine =>
             {
-                Content = content,
-            };
-            var project = new TestRazorProject(new[] { projectItem });
-            var razorEngine = RazorEngine.Create(engine =>
-            {
+                engine.Features.Add(new SuppressChecksumOptionsFeature());
+
                 engine.ConfigureClass((document, @class) =>
                 {
-                    @class.Name = "MyClass";
-                    @class.AccessModifier = "protected internal";
+                    @class.ClassName = "MyClass";
+
+                    @class.Modifiers.Clear();
+                    @class.Modifiers.Add("protected");
+                    @class.Modifiers.Add("internal");
                 });
 
                 engine.ConfigureClass((document, @class) =>
                 {
+                    @class.TypeParameters = new[] { new TypeParameter() { ParameterName = "TValue", }, };
                     @class.Interfaces = new[] { "global::System.IDisposable" };
                     @class.BaseType = "CustomBaseType";
                 });
-            });
-            var templateEngine = new RazorTemplateEngine(razorEngine, project);
+            }).Engine;
+            var templateEngine = new RazorTemplateEngine(razorEngine, fileSystem);
 
             // Act
-            var cSharpDocument = templateEngine.GenerateCode(projectItem.Path);
+            var cSharpDocument = templateEngine.GenerateCode($"{FileName}.cshtml");
 
             // Assert
             AssertCSharpDocumentMatchesBaseline(cSharpDocument);
@@ -88,21 +84,17 @@ namespace Microsoft.AspNetCore.Razor.Language.IntegrationTests
         public void GenerateCodeWithSetNamespace()
         {
             // Arrange
-            var filePath = Path.Combine(TestProjectRoot, $"{Filename}.cshtml");
-            var content = File.ReadAllText(filePath);
-            var projectItem = new TestRazorProjectItem($"{Filename}.cshtml", "")
+            var fileSystem = new DefaultRazorProjectFileSystem(TestProjectRoot);
+            var razorEngine = RazorProjectEngine.Create(engine =>
             {
-                Content = content,
-            };
-            var project = new TestRazorProject(new[] { projectItem });
-            var razorEngine = RazorEngine.Create(engine =>
-            {
+                engine.Features.Add(new SuppressChecksumOptionsFeature());
+
                 engine.SetNamespace("MyApp.Razor.Views");
-            });
-            var templateEngine = new RazorTemplateEngine(razorEngine, project);
+            }).Engine;
+            var templateEngine = new RazorTemplateEngine(razorEngine, fileSystem);
 
             // Act
-            var cSharpDocument = templateEngine.GenerateCode(projectItem.Path);
+            var cSharpDocument = templateEngine.GenerateCode($"{FileName}.cshtml");
 
             // Assert
             AssertCSharpDocumentMatchesBaseline(cSharpDocument);

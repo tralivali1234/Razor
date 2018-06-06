@@ -6,10 +6,13 @@ using System.Collections.Generic;
 
 namespace Microsoft.AspNetCore.Razor.Language
 {
+#pragma warning disable CS0618 // Type or member is obsolete
     internal class DefaultRazorEngineBuilder : IRazorEngineBuilder
+#pragma warning restore CS0618 // Type or member is obsolete
     {
-        public DefaultRazorEngineBuilder()
+        public DefaultRazorEngineBuilder(bool designTime)
         {
+            DesignTime = designTime;
             Features = new List<IRazorEngineFeature>();
             Phases = new List<IRazorEnginePhase>();
         }
@@ -18,7 +21,7 @@ namespace Microsoft.AspNetCore.Razor.Language
 
         public IList<IRazorEnginePhase> Phases { get; }
 
-        public bool DesignTime { get; set; }
+        public bool DesignTime { get; }
 
         public RazorEngine Build()
         {

@@ -21,14 +21,14 @@ namespace Microsoft.AspNetCore.Razor.Language.IntegrationTests
                     assemblyName: "TestAssembly")
             };
 
-            var engine = RazorEngine.Create(builder => builder.AddTagHelpers(descriptors));
-            var document = CreateCodeDocument();
+            var projectEngine = CreateProjectEngine(builder => builder.AddTagHelpers(descriptors));
+            var projectItem = CreateProjectItem();
 
             // Act
-            engine.Process(document);
+            var codeDocument = projectEngine.Process(projectItem);
 
             // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
+            AssertDocumentNodeMatchesBaseline(codeDocument.GetDocumentIntermediateNode());
         }
 
         [Fact]
@@ -41,7 +41,7 @@ namespace Microsoft.AspNetCore.Razor.Language.IntegrationTests
                     tagName: "input",
                     typeName: "InputTagHelper",
                     assemblyName: "TestAssembly",
-                    attributes: new Action<ITagHelperBoundAttributeDescriptorBuilder>[]
+                    attributes: new Action<BoundAttributeDescriptorBuilder>[]
                     {
                         builder => builder
                             .Name("bound")
@@ -50,14 +50,14 @@ namespace Microsoft.AspNetCore.Razor.Language.IntegrationTests
                     })
             };
 
-            var engine = RazorEngine.Create(builder => builder.AddTagHelpers(descriptors));
-            var document = CreateCodeDocument();
+            var projectEngine = CreateProjectEngine(builder => builder.AddTagHelpers(descriptors));
+            var projectItem = CreateProjectItem();
 
             // Act
-            engine.Process(document);
+            var codeDocument = projectEngine.Process(projectItem);
 
             // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
+            AssertDocumentNodeMatchesBaseline(codeDocument.GetDocumentIntermediateNode());
         }
 
         [Fact]
@@ -78,7 +78,7 @@ namespace Microsoft.AspNetCore.Razor.Language.IntegrationTests
                     tagName: "input",
                     typeName: "InputTagHelper",
                     assemblyName: "TestAssembly",
-                    attributes: new Action<ITagHelperBoundAttributeDescriptorBuilder>[]
+                    attributes: new Action<BoundAttributeDescriptorBuilder>[]
                     {
                         builder => builder
                             .Name("value")
@@ -87,33 +87,34 @@ namespace Microsoft.AspNetCore.Razor.Language.IntegrationTests
                     })
             };
 
-            var engine = RazorEngine.Create(builder => builder.AddTagHelpers(descriptors));
-            var document = CreateCodeDocument();
+            var projectEngine = CreateProjectEngine(builder => builder.AddTagHelpers(descriptors));
+            var projectItem = CreateProjectItem();
 
             // Act
-            engine.Process(document);
+            var codeDocument = projectEngine.Process(projectItem);
 
             // Assert
-            AssertIRMatchesBaseline(document.GetIRDocument());
+            AssertDocumentNodeMatchesBaseline(codeDocument.GetDocumentIntermediateNode());
         }
 
         private static TagHelperDescriptor CreateTagHelperDescriptor(
             string tagName,
             string typeName,
             string assemblyName,
-            IEnumerable<Action<ITagHelperBoundAttributeDescriptorBuilder>> attributes = null)
+            IEnumerable<Action<BoundAttributeDescriptorBuilder>> attributes = null)
         {
             var builder = TagHelperDescriptorBuilder.Create(typeName, assemblyName);
+            builder.TypeName(typeName);
 
             if (attributes != null)
             {
                 foreach (var attributeBuilder in attributes)
                 {
-                    builder.BindAttribute(attributeBuilder);
+                    builder.BoundAttributeDescriptor(attributeBuilder);
                 }
             }
 
-            builder.TagMatchingRule(ruleBuilder => ruleBuilder.RequireTagName(tagName));
+            builder.TagMatchingRuleDescriptor(ruleBuilder => ruleBuilder.RequireTagName(tagName));
 
             var descriptor = builder.Build();
 

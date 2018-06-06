@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Microsoft.AspNetCore.Razor.Language;
@@ -11,62 +12,66 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
 {
     public class PageDirective
     {
-        public static readonly DirectiveDescriptor DirectiveDescriptor = DirectiveDescriptorBuilder
-            .Create("page")
-            .BeginOptionals()
-            .AddString() // Route template
-            .AddString() // Page Name
-            .Build();
+        public static readonly DirectiveDescriptor Directive = DirectiveDescriptor.CreateDirective(
+            "page",
+            DirectiveKind.SingleLine,
+            builder =>
+            {
+                builder.AddOptionalStringToken(Resources.PageDirective_RouteToken_Name, Resources.PageDirective_RouteToken_Description);
+                builder.Usage = DirectiveUsage.FileScopedSinglyOccurring;
+                builder.Description = Resources.PageDirective_Description;
+            });
 
-        private PageDirective(string routeTemplate, string pageName)
+        private PageDirective(string routeTemplate, IntermediateNode directiveNode)
         {
             RouteTemplate = routeTemplate;
-            PageName = pageName;
+            DirectiveNode = directiveNode;
         }
 
         public string RouteTemplate { get; }
 
-        public string PageName { get; }
+        public IntermediateNode DirectiveNode { get; }
 
-        public static IRazorEngineBuilder Register(IRazorEngineBuilder builder)
+        public static RazorProjectEngineBuilder Register(RazorProjectEngineBuilder builder)
         {
-            builder.AddDirective(DirectiveDescriptor);
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.AddDirective(Directive);
             return builder;
         }
 
-        public static bool TryGetPageDirective(DocumentIRNode irDocument, out PageDirective pageDirective)
+        public static bool TryGetPageDirective(DocumentIntermediateNode documentNode, out PageDirective pageDirective)
         {
             var visitor = new Visitor();
-            for (var i = 0; i < irDocument.Children.Count; i++)
+            for (var i = 0; i < documentNode.Children.Count; i++)
             {
-                visitor.Visit(irDocument.Children[i]);
+                visitor.Visit(documentNode.Children[i]);
             }
 
-            if (visitor.DirectiveNode == null)
+            if (visitor.DirectiveTokens == null)
             {
                 pageDirective = null;
                 return false;
             }
 
-            var tokens = visitor.DirectiveNode.Tokens.ToList();
+            var tokens = visitor.DirectiveTokens.ToList();
             string routeTemplate = null;
-            string pageName = null;
             if (tokens.Count > 0)
             {
                 routeTemplate = TrimQuotes(tokens[0].Content);
             }
 
-            if (tokens.Count > 1)
-            {
-                pageName = TrimQuotes(tokens[1].Content);
-            }
-
-            pageDirective = new PageDirective(routeTemplate, pageName);
+            pageDirective = new PageDirective(routeTemplate, visitor.DirectiveNode);
             return true;
         }
 
         private static string TrimQuotes(string content)
         {
+            // Tokens aren't captured if they're malformed. Therefore, this method will
+            // always be called with a valid token content.
             Debug.Assert(content.Length >= 2);
             Debug.Assert(content.StartsWith("\"", StringComparison.Ordinal));
             Debug.Assert(content.EndsWith("\"", StringComparison.Ordinal));
@@ -74,17 +79,43 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
             return content.Substring(1, content.Length - 2);
         }
 
-        private class Visitor : RazorIRNodeWalker
+        private class Visitor : IntermediateNodeWalker
         {
-            public DirectiveIRNode DirectiveNode { get; private set; }
+            public IntermediateNode DirectiveNode { get; private set; }
 
-            public override void VisitDirective(DirectiveIRNode node)
+            public IEnumerable<DirectiveTokenIntermediateNode> DirectiveTokens { get; private set; }
+
+            public override void VisitDirective(DirectiveIntermediateNode node)
             {
-                if (node.Descriptor == DirectiveDescriptor)
+                if (node.Directive == Directive)
                 {
                     DirectiveNode = node;
+                    DirectiveTokens = node.Tokens;
+                }
+            }
+
+            public override void VisitMalformedDirective(MalformedDirectiveIntermediateNode node)
+            {
+                if (DirectiveTokens == null && node.Directive == Directive)
+                {
+                    DirectiveNode = node;
+                    DirectiveTokens = node.Tokens;
                 }
             }
         }
+
+        #region Obsolete
+        [Obsolete("This method is obsolete and will be removed in a future version.")]
+        public static IRazorEngineBuilder Register(IRazorEngineBuilder builder)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.AddDirective(Directive);
+            return builder;
+        }
+        #endregion
     }
 }

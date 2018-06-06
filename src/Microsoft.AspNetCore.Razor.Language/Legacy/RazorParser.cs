@@ -9,7 +9,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
     internal class RazorParser
     {
         public RazorParser()
-            : this(RazorParserOptions.CreateDefaultOptions())
+            : this(RazorParserOptions.CreateDefault())
         {
         }
 
@@ -32,13 +32,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 throw new ArgumentNullException(nameof(source));
             }
 
-            var chars = new char[source.Length];
-            source.CopyTo(0, chars, 0, source.Length);
-
-            var reader = new SeekableTextReader(chars, source.FileName);
-
-            var context = new ParserContext(reader, Options);
-
+            var context = new ParserContext(source, Options);
             var codeParser = new CSharpCodeParser(Options.Directives, context);
             var markupParser = new HtmlMarkupParser(context);
 
@@ -49,8 +43,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             
             var root = context.Builder.Build();
 
-            // Temporary code while we're still using legacy diagnostics in the SyntaxTree.
-            var diagnostics = context.ErrorSink.Errors.Select(error => RazorDiagnostic.Create(error));
+            var diagnostics = context.ErrorSink.Errors;
 
             return RazorSyntaxTree.Create(root, source, diagnostics, Options);
         }

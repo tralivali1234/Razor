@@ -25,8 +25,11 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new MarkupTagHelperBlock("ul",
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("bound", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("[item]", factory.CodeMarkup("items"), HtmlAttributeValueStyle.SingleQuotes)
+                                    new TagHelperAttributeNode("bound", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode(
+                                        "[item]",
+                                        factory.CodeMarkup("items").With(new ExpressionChunkGenerator()),
+                                        AttributeStructure.SingleQuotes)
                                 }))
                     },
                     {
@@ -35,8 +38,11 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new MarkupTagHelperBlock("ul",
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("bound", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("[(item)]", factory.CodeMarkup("items"), HtmlAttributeValueStyle.SingleQuotes)
+                                    new TagHelperAttributeNode("bound", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode(
+                                        "[(item)]",
+                                        factory.CodeMarkup("items").With(new ExpressionChunkGenerator()),
+                                        AttributeStructure.SingleQuotes)
                                 }))
                     },
                     {
@@ -45,11 +51,11 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new MarkupTagHelperBlock("button",
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("bound", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("bound", null, AttributeStructure.Minimized),
                                     new TagHelperAttributeNode(
                                         "(click)",
-                                        factory.CodeMarkup("doSomething()"),
-                                        HtmlAttributeValueStyle.SingleQuotes)
+                                        factory.CodeMarkup("doSomething()").With(new ExpressionChunkGenerator()),
+                                        AttributeStructure.SingleQuotes)
                                 },
                                 children: factory.Markup("Click Me")))
                     },
@@ -59,11 +65,11 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new MarkupTagHelperBlock("button",
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("bound", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("bound", null, AttributeStructure.Minimized),
                                     new TagHelperAttributeNode(
                                         "(^click)",
-                                        factory.CodeMarkup("doSomething()"),
-                                        HtmlAttributeValueStyle.SingleQuotes)
+                                        factory.CodeMarkup("doSomething()").With(new ExpressionChunkGenerator()),
+                                        AttributeStructure.SingleQuotes)
                                 },
                                 children: factory.Markup("Click Me")))
                     },
@@ -73,11 +79,11 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new MarkupTagHelperBlock("template",
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("bound", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("bound", null, AttributeStructure.Minimized),
                                     new TagHelperAttributeNode(
                                         "*something",
                                         factory.Markup("value"),
-                                        HtmlAttributeValueStyle.SingleQuotes)
+                                        AttributeStructure.SingleQuotes)
                                 }))
                     },
                     {
@@ -86,8 +92,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new MarkupTagHelperBlock("div",
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("bound", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("#localminimized", null, HtmlAttributeValueStyle.Minimized)
+                                    new TagHelperAttributeNode("bound", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("#localminimized", null, AttributeStructure.Minimized)
                                 }))
                     },
                     {
@@ -96,8 +102,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new MarkupTagHelperBlock("div",
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("bound", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("#local", factory.Markup("value"), HtmlAttributeValueStyle.SingleQuotes)
+                                    new TagHelperAttributeNode("bound", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("#local", factory.Markup("value"), AttributeStructure.SingleQuotes)
                                 }))
                     },
                 };
@@ -112,36 +118,36 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             var descriptors = new[]
             {
                 TagHelperDescriptorBuilder.Create("CatchAllTagHelper", "SomeAssembly")
-                    .TagMatchingRule(rule => 
+                    .TagMatchingRuleDescriptor(rule =>
                         rule
                         .RequireTagName("*")
-                        .RequireAttribute(attribute => attribute.Name("bound")))
-                    .BindAttribute(attribute => 
+                        .RequireAttributeDescriptor(attribute => attribute.Name("bound")))
+                    .BoundAttributeDescriptor(attribute =>
                         attribute
                         .Name("[item]")
                         .PropertyName("ListItems")
                         .TypeName(typeof(List<string>).Namespace + "List<System.String>"))
-                    .BindAttribute(attribute =>
+                    .BoundAttributeDescriptor(attribute =>
                         attribute
                         .Name("[(item)]")
                         .PropertyName("ArrayItems")
                         .TypeName(typeof(string[]).Namespace + "System.String[]"))
-                    .BindAttribute(attribute =>
+                    .BoundAttributeDescriptor(attribute =>
                         attribute
                         .Name("(click)")
                         .PropertyName("Event1")
                         .TypeName(typeof(Action).FullName))
-                    .BindAttribute(attribute =>
+                    .BoundAttributeDescriptor(attribute =>
                         attribute
                         .Name("(^click)")
                         .PropertyName("Event2")
                         .TypeName(typeof(Action).FullName))
-                    .BindAttribute(attribute =>
+                    .BoundAttributeDescriptor(attribute =>
                         attribute
                         .Name("*something")
                         .PropertyName("StringProperty1")
                         .TypeName(typeof(string).FullName))
-                    .BindAttribute(attribute =>
+                    .BoundAttributeDescriptor(attribute =>
                         attribute
                         .Name("#local")
                         .PropertyName("StringProperty2")
@@ -150,7 +156,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             };
 
             // Act & Assert
-            EvaluateData(descriptors, documentContent, (MarkupBlock)expectedOutput, expectedErrors: new RazorError[0]);
+            EvaluateData(descriptors, documentContent, (MarkupBlock)expectedOutput, expectedErrors: new RazorDiagnostic[0]);
         }
 
         public static TheoryData WithoutEndTagElementData
@@ -175,7 +181,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagOnly,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("type", factory.Markup("text"), HtmlAttributeValueStyle.SingleQuotes)
+                                    new TagHelperAttributeNode("type", factory.Markup("text"), AttributeStructure.SingleQuotes)
                                 }))
                     },
                     {
@@ -192,7 +198,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagOnly,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("type", factory.Markup("text"), HtmlAttributeValueStyle.SingleQuotes)
+                                    new TagHelperAttributeNode("type", factory.Markup("text"), AttributeStructure.SingleQuotes)
                                 }),
                             new MarkupTagHelperBlock("input", TagMode.StartTagOnly))
                     },
@@ -216,7 +222,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             var descriptors = new TagHelperDescriptor[]
             {
                 TagHelperDescriptorBuilder.Create("InputTagHelper", "SomeAssembly")
-                    .TagMatchingRule(rule => 
+                    .TagMatchingRuleDescriptor(rule =>
                         rule
                         .RequireTagName("input")
                         .RequireTagStructure(TagStructure.WithoutEndTag))
@@ -224,7 +230,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             };
 
             // Act & Assert
-            EvaluateData(descriptors, documentContent, (MarkupBlock)expectedOutput, expectedErrors: new RazorError[0]);
+            EvaluateData(descriptors, documentContent, (MarkupBlock)expectedOutput, expectedErrors: new RazorDiagnostic[0]);
         }
 
         public static TheoryData TagStructureCompatibilityData
@@ -259,7 +265,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagOnly,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("type", factory.Markup("text"), HtmlAttributeValueStyle.SingleQuotes)
+                                    new TagHelperAttributeNode("type", factory.Markup("text"), AttributeStructure.SingleQuotes)
                                 }))
                     },
                     {
@@ -280,7 +286,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagAndEndTag,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("type", factory.Markup("text"), HtmlAttributeValueStyle.SingleQuotes)
+                                    new TagHelperAttributeNode("type", factory.Markup("text"), AttributeStructure.SingleQuotes)
                                 }))
                     },
                     {
@@ -314,13 +320,13 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             var descriptors = new TagHelperDescriptor[]
             {
                 TagHelperDescriptorBuilder.Create("InputTagHelper1", "SomeAssembly")
-                    .TagMatchingRule(rule => 
+                    .TagMatchingRuleDescriptor(rule =>
                         rule
                         .RequireTagName("input")
                         .RequireTagStructure(structure1))
                     .Build(),
                 TagHelperDescriptorBuilder.Create("InputTagHelper2", "SomeAssembly")
-                    .TagMatchingRule(rule =>
+                    .TagMatchingRuleDescriptor(rule =>
                         rule
                         .RequireTagName("input")
                         .RequireTagStructure(structure2))
@@ -328,7 +334,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             };
 
             // Act & Assert
-            EvaluateData(descriptors, documentContent, (MarkupBlock)expectedOutput, expectedErrors: new RazorError[0]);
+            EvaluateData(descriptors, documentContent, (MarkupBlock)expectedOutput, expectedErrors: new RazorDiagnostic[0]);
         }
 
         public static TheoryData MalformedTagHelperAttributeBlockData
@@ -337,11 +343,6 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             {
                 var factory = new SpanFactory();
                 var blockFactory = new BlockFactory(factory);
-                var errorFormatUnclosed = "Found a malformed '{0}' tag helper. Tag helpers must have a start and " +
-                                          "end tag or be self closing.";
-                var errorFormatNoCloseAngle = "Missing close angle for tag helper '{0}'.";
-                var errorFormatNoCSharp = "The tag helper '{0}' must not have C# in the element's attribute " +
-                                           "declaration area.";
                 Func<string, Block> createInvalidDoBlock = extraCode =>
                 {
                     return new MarkupBlock(
@@ -356,7 +357,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 factory.Code("do {" + extraCode).AsStatement())));
                 };
 
-                return new TheoryData<string, MarkupBlock, RazorError[]>
+                return new TheoryData<string, MarkupBlock, RazorDiagnostic[]>
                 {
                     {
                         "<p class='",
@@ -367,18 +368,14 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                     new TagHelperAttributeNode(
                                         "class",
                                         factory.Markup(string.Empty).With(SpanChunkGenerator.Null),
-                                        HtmlAttributeValueStyle.SingleQuotes)
+                                        AttributeStructure.SingleQuotes)
                                 })),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatNoCloseAngle, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p")
                         }
                     },
                     {
@@ -391,10 +388,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 })),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p")
                         }
                     },
                     {
@@ -406,18 +401,14 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                     new TagHelperAttributeNode(
                                         "bar",
                                         new MarkupBlock(factory.Markup("false"), factory.Markup("  <strong>")),
-                                        HtmlAttributeValueStyle.SingleQuotes)
+                                        AttributeStructure.SingleQuotes)
                                 })),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatNoCloseAngle, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p")
                         }
                     },
                     {
@@ -431,18 +422,14 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                         new MarkupBlock(
                                             factory.Markup("false"),
                                             factory.Markup("  <strong")),
-                                        HtmlAttributeValueStyle.SingleQuotes)
+                                        AttributeStructure.SingleQuotes)
                                 })),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatNoCloseAngle, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p")
                         }
                     },
                     {
@@ -454,22 +441,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                     new TagHelperAttributeNode(
                                         "bar",
                                         factory.Markup("false"),
-                                        HtmlAttributeValueStyle.DoubleQuotes)
+                                        AttributeStructure.NoQuotes)
                                 })),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatNoCloseAngle, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                "TagHelper attributes must be well-formed.",
-                                new SourceLocation(12, 0, 12),
-                                length: 1)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperAttributeListMustBeWellFormed(
+                                new SourceSpan(12, 0, 12, 1))
                         }
                     },
                     {
@@ -484,14 +465,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 })),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatNoCloseAngle, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p")
                         }
                     },
                     {
@@ -508,14 +485,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 })),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatNoCloseAngle, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p")
                         }
                     },
                     {
@@ -524,24 +497,18 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new MarkupTagHelperBlock("p",
                                 new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("foo", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("bar", null, HtmlAttributeValueStyle.Minimized)
+                                    new TagHelperAttributeNode("foo", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("bar", null, AttributeStructure.Minimized)
                                 },
                                 new MarkupTagHelperBlock("strong"))),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatNoCloseAngle, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "strong"),
-                                new SourceLocation(11, 0, 11),
-                                length: 6)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(11, 0, 11), contentLength: 6), "strong"),
                         }
                     },
                     {
@@ -550,14 +517,12 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new MarkupTagHelperBlock("p",
                                 new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("class", factory.Markup("btn"))
+                                    new TagHelperAttributeNode("class", factory.Markup("btn"), AttributeStructure.NoQuotes)
                                 })),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p")
                         }
                     },
                     {
@@ -566,14 +531,12 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new MarkupTagHelperBlock("p",
                                 new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("class", factory.Markup("btn"))
+                                    new TagHelperAttributeNode("class", factory.Markup("btn"), AttributeStructure.NoQuotes)
                                 })),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p")
                         }
                     },
                     {
@@ -585,23 +548,17 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                     new TagHelperAttributeNode(
                                         "class",
                                         new MarkupBlock(factory.Markup("btn"), factory.Markup(" bar="))),
-                                    new TagHelperAttributeNode("foo", null, HtmlAttributeValueStyle.Minimized)
+                                    new TagHelperAttributeNode("foo", null, AttributeStructure.Minimized)
                                 },
                                 new MarkupTagHelperBlock("strong"))),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatNoCloseAngle, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "strong"),
-                                new SourceLocation(24, 0, 24),
-                                length: 6)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(24, 0, 24), contentLength: 6), "strong")
                         }
                     },
                     {
@@ -613,9 +570,9 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                     new TagHelperAttributeNode(
                                         "class",
                                         new MarkupBlock(factory.Markup("btn"), factory.Markup(" bar="))),
-                                    new TagHelperAttributeNode("foo", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("foo", null, AttributeStructure.Minimized),
                                 })),
-                        new RazorError[0]
+                        new RazorDiagnostic[0]
                     },
                     {
                         "<p @DateTime.Now class=\"btn\"></p>",
@@ -623,9 +580,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new MarkupTagHelperBlock("p")),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatNoCSharp, "p"),
-                                absoluteIndex: 3, lineIndex: 0 , columnIndex: 3, length: 13)
+                            RazorDiagnosticFactory.CreateParsing_TagHelpersCannotHaveCSharpInTagDeclaration(new SourceSpan(3, 0, 3, 13), "p")
                         }
                     },
                     {
@@ -634,9 +589,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new MarkupTagHelperBlock("p")),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatNoCSharp, "p"),
-                                absoluteIndex: 3, lineIndex: 0 , columnIndex: 3, length: 13)
+                            RazorDiagnosticFactory.CreateParsing_TagHelpersCannotHaveCSharpInTagDeclaration(new SourceSpan(3, 0, 3, 13), "p")
                         }
                     },
                     {
@@ -658,15 +611,13 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                                     factory.CodeTransition(),
                                                         factory.Code("DateTime.Now")
                                                             .AsImplicitExpression(CSharpCodeParser.DefaultKeywords)
-                                                            .Accepts(AcceptedCharacters.NonWhiteSpace)))),
-                                        HtmlAttributeValueStyle.DoubleQuotes)
+                                                            .Accepts(AcceptedCharactersInternal.NonWhiteSpace)))),
+                                        AttributeStructure.DoubleQuotes)
                                 })),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p")
                         }
                     },
                     {
@@ -681,17 +632,12 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 })),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatNoCloseAngle, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                LegacyResources.FormatParseError_Expected_EndOfBlock_Before_EOF("do", "}", "{"),
-                                absoluteIndex: 11, lineIndex: 0, columnIndex: 11, length: 1)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_ExpectedEndOfBlockBeforeEOF(
+                                new SourceSpan(new SourceLocation(11, 0, 11), contentLength: 1), "do", "}", "{"),
                         }
                     },
                     {
@@ -704,20 +650,14 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 })),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatNoCloseAngle, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                LegacyResources.FormatParseError_Expected_EndOfBlock_Before_EOF("do", "}", "{"),
-                                absoluteIndex: 11, lineIndex: 0, columnIndex: 11, length: 1),
-                            new RazorError(
-                                LegacyResources.ParseError_Unterminated_String_Literal,
-                                absoluteIndex: 15, lineIndex: 0, columnIndex: 15, length: 1)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_ExpectedEndOfBlockBeforeEOF(
+                                new SourceSpan(new SourceLocation(11, 0, 11), contentLength: 1), "do", "}", "{"),
+                            RazorDiagnosticFactory.CreateParsing_UnterminatedStringLiteral(
+                                new SourceSpan(filePath: null, absoluteIndex: 15, lineIndex: 0, characterIndex: 15, length: 1))
                         }
                     },
                     {
@@ -726,23 +666,15 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new MarkupTagHelperBlock("p")),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatNoCloseAngle, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatNoCSharp, "p"),
-                                absoluteIndex: 3, lineIndex: 0 , columnIndex: 3, length: 30),
-                            new RazorError(
-                                LegacyResources.FormatParseError_Expected_EndOfBlock_Before_EOF("do", "}", "{"),
-                                absoluteIndex: 4, lineIndex: 0, columnIndex: 4, length: 1),
-                            new RazorError(
-                                LegacyResources.FormatParseError_UnexpectedEndTag("p"),
-                                absoluteIndex: 31, lineIndex: 0, columnIndex: 31, length: 1)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelpersCannotHaveCSharpInTagDeclaration(new SourceSpan(3, 0, 3, 30), "p"),
+                            RazorDiagnosticFactory.CreateParsing_ExpectedEndOfBlockBeforeEOF(
+                                new SourceSpan(new SourceLocation(4, 0, 4), contentLength: 1), "do", "}", "{"),
+                            RazorDiagnosticFactory.CreateParsing_UnexpectedEndTag(
+                        new SourceSpan(filePath: null, absoluteIndex: 31, lineIndex: 0, characterIndex: 31, length: 1), "p")
                         }
                     },
                     {
@@ -751,14 +683,11 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new MarkupTagHelperBlock("p",
                                 new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("class", factory.Markup("some"))
+                                    new TagHelperAttributeNode("class", factory.Markup("some"), AttributeStructure.NoQuotes)
                                 })),
                         new []
                         {
-                            new RazorError(
-                                "TagHelper attributes must be well-formed.",
-                                new SourceLocation(13, 0, 13),
-                                length: 13)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperAttributeListMustBeWellFormed(new SourceSpan(13, 0, 13, 13))
                         }
                     },
                 };
@@ -772,7 +701,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             object expectedOutput,
             object expectedErrors)
         {
-            RunParseTreeRewriterTest(documentContent, (MarkupBlock)expectedOutput, (RazorError[])expectedErrors, "strong", "p");
+            RunParseTreeRewriterTest(documentContent, (MarkupBlock)expectedOutput, (RazorDiagnostic[])expectedErrors, "strong", "p");
         }
 
         public static TheoryData MalformedTagHelperBlockData
@@ -781,11 +710,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             {
                 var factory = new SpanFactory();
                 var blockFactory = new BlockFactory(factory);
-                var errorFormatUnclosed = "Found a malformed '{0}' tag helper. Tag helpers must have a start and " +
-                                          "end tag or be self closing.";
-                var errorFormatNoCloseAngle = "Missing close angle for tag helper '{0}'.";
 
-                return new TheoryData<string, MarkupBlock, RazorError[]>
+                return new TheoryData<string, MarkupBlock, RazorDiagnostic[]>
                 {
                     {
                         "<p",
@@ -793,14 +719,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new MarkupTagHelperBlock("p")),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatNoCloseAngle, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p")
                         }
                     },
                     {
@@ -809,9 +731,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new MarkupTagHelperBlock("p")),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatNoCloseAngle, "p"),
-                                absoluteIndex: 5, lineIndex: 0, columnIndex: 5, length: 1)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(absoluteIndex: 5, lineIndex: 0, characterIndex: 5, length: 1), "p")
                         }
                     },
                     {
@@ -821,18 +742,12 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 new MarkupTagHelperBlock("strong"))),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatNoCloseAngle, "strong"),
-                                new SourceLocation(4, 0, 4),
-                                length: 6),
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "strong"),
-                                new SourceLocation(4, 0, 4),
-                                length: 6)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(4, 0, 4), contentLength: 6), "strong"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(4, 0, 4), contentLength: 6), "strong")
                         }
                     },
                     {
@@ -842,18 +757,12 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 new MarkupTagHelperBlock("p"))),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatNoCloseAngle, "strong"),
-                                new SourceLocation(1, 0, 1),
-                                length: 6),
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "strong"),
-                                new SourceLocation(1, 0, 1),
-                                length: 6),
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "p"),
-                                new SourceLocation(9, 0, 9),
-                                length: 1)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 6), "strong"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 6), "strong"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(9, 0, 9), contentLength: 1), "p")
                         }
                     },
                     {
@@ -862,14 +771,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new MarkupTagHelperBlock("strong")),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatNoCloseAngle, "strong"),
-                                new SourceLocation(1, 0, 1),
-                                length: 6),
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatNoCloseAngle, "strong"),
-                                new SourceLocation(10, 0, 10),
-                                length: 6)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 6), "strong"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(10, 0, 10), contentLength: 6), "strong")
                         }
                     },
                     {
@@ -883,14 +788,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new MarkupTagHelperBlock("p")),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "strong"),
-                                new SourceLocation(4, 0, 4),
-                                length: 6),
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "p"),
-                                new SourceLocation(14, 0, 14),
-                                length: 1)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(4, 0, 4), contentLength: 6), "strong"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(14, 0, 14), contentLength: 1), "p")
                         }
                     },
                     {
@@ -905,10 +806,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 factory.Markup(">"))),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "strong"),
-                                new SourceLocation(3, 0, 3),
-                                length: 6)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(3, 0, 3), contentLength: 6), "strong")
                         }
                     },
                     {
@@ -919,10 +818,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 blockFactory.MarkupTagBlock("</p>"))),
                         new []
                         {
-                            new RazorError(
-                                string.Format(CultureInfo.InvariantCulture, errorFormatUnclosed, "p"),
-                                new SourceLocation(14, 0, 14),
-                                length: 1)
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(14, 0, 14), contentLength: 1), "p")
                         }
                     }
                 };
@@ -936,7 +833,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             object expectedOutput,
             object expectedErrors)
         {
-            RunParseTreeRewriterTest(documentContent, (MarkupBlock)expectedOutput, (RazorError[])expectedErrors, "strong", "p");
+            RunParseTreeRewriterTest(documentContent, (MarkupBlock)expectedOutput, (RazorDiagnostic[])expectedErrors, "strong", "p");
         }
 
         public static TheoryData CodeTagHelperAttributesData
@@ -950,7 +847,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                         factory.CodeTransition(),
                             factory.Code("DateTime.Now")
                                 .AsImplicitExpression(CSharpCodeParser.DefaultKeywords)
-                                .Accepts(AcceptedCharacters.NonWhiteSpace)));
+                                .Accepts(AcceptedCharactersInternal.NonWhiteSpace)));
 
                 return new TheoryData<string, Block>
                 {
@@ -961,7 +858,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("age", factory.CodeMarkup("12"))
+                                    new TagHelperAttributeNode("age", factory.CodeMarkup("12").With(new ExpressionChunkGenerator()))
                                 }))
                     },
                     {
@@ -973,7 +870,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 {
                                     new TagHelperAttributeNode(
                                         "birthday",
-                                        factory.CodeMarkup("DateTime.Now"))
+                                        factory.CodeMarkup("DateTime.Now").With(new ExpressionChunkGenerator()))
                                 }))
                     },
                     {
@@ -1005,9 +902,9 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                         "age",
                                         new MarkupBlock(
                                             new MarkupBlock(
-                                                factory.CodeMarkup(" "),
+                                                factory.CodeMarkup(" ").With(new ExpressionChunkGenerator()),
                                                 new ExpressionBlock(
-                                                    factory.CSharpCodeMarkup("@"),
+                                                    factory.CSharpCodeMarkup("@").With(new ExpressionChunkGenerator()),
                                                     factory
                                                         .CSharpCodeMarkup("DateTime.Now.Year")
                                                         .With(new ExpressionChunkGenerator())))))
@@ -1045,43 +942,42 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                     new TagHelperAttributeNode(
                                         "age",
                                         new MarkupBlock(
-                                            factory.CodeMarkup("1"),
-                                            factory.CodeMarkup(" +"),
+                                            factory.CodeMarkup("1").With(new ExpressionChunkGenerator()),
+                                            factory.CodeMarkup(" +").With(new ExpressionChunkGenerator()),
                                             new MarkupBlock(
-                                                factory.CodeMarkup(" "),
+                                                factory.CodeMarkup(" ").With(new ExpressionChunkGenerator()),
                                                 new ExpressionBlock(
-                                                    factory.CSharpCodeMarkup("@"),
+                                                    factory.CSharpCodeMarkup("@").With(new ExpressionChunkGenerator()),
                                                     factory.CSharpCodeMarkup("value")
                                                         .With(new ExpressionChunkGenerator()))),
-                                            factory.CodeMarkup(" +"),
-                                            factory.CodeMarkup(" 2"))),
+                                            factory.CodeMarkup(" +").With(new ExpressionChunkGenerator()),
+                                            factory.CodeMarkup(" 2").With(new ExpressionChunkGenerator()))),
                                     new TagHelperAttributeNode(
                                         "birthday",
                                         new MarkupBlock(
-                                            factory.CodeMarkup("(bool)"),
+                                            factory.CodeMarkup("(bool)").With(new ExpressionChunkGenerator()),
                                             new MarkupBlock(
                                                 new ExpressionBlock(
-                                                    factory.CSharpCodeMarkup("@"),
+                                                    factory.CSharpCodeMarkup("@").With(new ExpressionChunkGenerator()),
                                                     factory
                                                         .CSharpCodeMarkup("Bag[\"val\"]")
                                                         .With(new ExpressionChunkGenerator()))),
-                                            factory.CodeMarkup(" ?"),
+                                            factory.CodeMarkup(" ?").With(new ExpressionChunkGenerator()),
                                             new MarkupBlock(
-                                                factory.CodeMarkup(" @")
-                                                    .As(SpanKind.Code),
-                                                factory.CodeMarkup("@")
-                                                    .As(SpanKind.Code)
-                                                    .With(SpanChunkGenerator.Null)),
-                                            factory.CodeMarkup("DateTime"),
-                                            factory.CodeMarkup(" :"),
+                                                factory.CodeMarkup(" @").With(new ExpressionChunkGenerator())
+                                                    .As(SpanKindInternal.Code),
+                                                factory.CodeMarkup("@").With(SpanChunkGenerator.Null)
+                                                    .As(SpanKindInternal.Code)),
+                                            factory.CodeMarkup("DateTime").With(new ExpressionChunkGenerator()),
+                                            factory.CodeMarkup(" :").With(new ExpressionChunkGenerator()),
                                             new MarkupBlock(
-                                                factory.CodeMarkup(" "),
+                                                factory.CodeMarkup(" ").With(new ExpressionChunkGenerator()),
                                                 new ExpressionBlock(
-                                                    factory.CSharpCodeMarkup("@"),
+                                                    factory.CSharpCodeMarkup("@").With(new ExpressionChunkGenerator()),
                                                     factory
                                                         .CSharpCodeMarkup("DateTime.Now")
                                                         .With(new ExpressionChunkGenerator())))),
-                                        HtmlAttributeValueStyle.SingleQuotes)
+                                        AttributeStructure.SingleQuotes)
                                 }))
                     },
                     {
@@ -1091,10 +987,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("age", factory.CodeMarkup("12")),
+                                    new TagHelperAttributeNode("age", factory.CodeMarkup("12").With(new ExpressionChunkGenerator())),
                                     new TagHelperAttributeNode(
                                         "birthday",
-                                        factory.CodeMarkup("DateTime.Now")),
+                                        factory.CodeMarkup("DateTime.Now").With(new ExpressionChunkGenerator())),
                                     new TagHelperAttributeNode(
                                         "name",
                                         new MarkupBlock(factory.Markup("Time:"), dateTimeNow))
@@ -1107,19 +1003,19 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("age", factory.CodeMarkup("12")),
+                                    new TagHelperAttributeNode("age", factory.CodeMarkup("12").With(new ExpressionChunkGenerator())),
                                     new TagHelperAttributeNode(
                                         "birthday",
-                                        factory.CodeMarkup("DateTime.Now")),
+                                        factory.CodeMarkup("DateTime.Now").With(new ExpressionChunkGenerator())),
                                     new TagHelperAttributeNode(
                                         "name",
                                         new MarkupBlock(
                                             factory.Markup("Time:"),
                                              new MarkupBlock(
-                                                factory.Markup(" @").Accepts(AcceptedCharacters.None),
+                                                factory.Markup(" @").Accepts(AcceptedCharactersInternal.None),
                                                 factory.Markup("@")
                                                     .With(SpanChunkGenerator.Null)
-                                                    .Accepts(AcceptedCharacters.None)),
+                                                    .Accepts(AcceptedCharactersInternal.None)),
                                             dateTimeNow))
                                 }))
                     },
@@ -1130,18 +1026,18 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("age", factory.CodeMarkup("12")),
+                                    new TagHelperAttributeNode("age", factory.CodeMarkup("12").With(new ExpressionChunkGenerator())),
                                     new TagHelperAttributeNode(
                                         "birthday",
-                                        factory.CodeMarkup("DateTime.Now")),
+                                        factory.CodeMarkup("DateTime.Now").With(new ExpressionChunkGenerator())),
                                     new TagHelperAttributeNode(
                                         "name",
                                         new MarkupBlock(
                                              new MarkupBlock(
-                                                factory.Markup("@").Accepts(AcceptedCharacters.None),
+                                                factory.Markup("@").Accepts(AcceptedCharactersInternal.None),
                                                 factory.Markup("@")
                                                     .With(SpanChunkGenerator.Null)
-                                                    .Accepts(AcceptedCharacters.None)),
+                                                    .Accepts(AcceptedCharactersInternal.None)),
                                             factory.Markup("BoundStringAttribute")))
                                 }))
                     },
@@ -1156,22 +1052,21 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                         "age",
                                         new MarkupBlock(
                                             new MarkupBlock(
-                                                factory.CodeMarkup("@"),
-                                                factory.CodeMarkup("@")
-                                                    .With(SpanChunkGenerator.Null)),
+                                                factory.CodeMarkup("@").With(new ExpressionChunkGenerator()),
+                                                factory.CodeMarkup("@").With(SpanChunkGenerator.Null)),
                                             new MarkupBlock(
                                                 factory.EmptyHtml()
-                                                    .AsCodeMarkup()
-                                                    .As(SpanKind.Code),
+                                                    .AsCodeMarkup().With(new ExpressionChunkGenerator())
+                                                    .As(SpanKindInternal.Code),
                                                 new ExpressionBlock(
-                                                    factory.CSharpCodeMarkup("@"),
-                                                    factory.CSharpCodeMarkup("("),
+                                                    factory.CSharpCodeMarkup("@").With(new ExpressionChunkGenerator()),
+                                                    factory.CSharpCodeMarkup("(").With(new ExpressionChunkGenerator()),
                                                     factory.CSharpCodeMarkup("11+1")
                                                         .With(new ExpressionChunkGenerator()),
-                                                    factory.CSharpCodeMarkup(")"))))),
+                                                    factory.CSharpCodeMarkup(")").With(new ExpressionChunkGenerator()))))),
                                     new TagHelperAttributeNode(
                                         "birthday",
-                                        factory.CodeMarkup("DateTime.Now")),
+                                        factory.CodeMarkup("DateTime.Now").With(new ExpressionChunkGenerator())),
                                     new TagHelperAttributeNode(
                                         "name",
                                         new MarkupBlock(factory.Markup("Time:"), dateTimeNow))
@@ -1191,18 +1086,18 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             var descriptors = new TagHelperDescriptor[]
             {
                 TagHelperDescriptorBuilder.Create("PersonTagHelper", "personAssembly")
-                    .TagMatchingRule(rule => rule.RequireTagName("person"))
-                    .BindAttribute(attribute =>
+                    .TagMatchingRuleDescriptor(rule => rule.RequireTagName("person"))
+                    .BoundAttributeDescriptor(attribute =>
                         attribute
                         .Name("age")
                         .PropertyName("Age")
                         .TypeName(typeof(int).FullName))
-                    .BindAttribute(attribute =>
+                    .BoundAttributeDescriptor(attribute =>
                         attribute
                         .Name("birthday")
                         .PropertyName("BirthDay")
                         .TypeName(typeof(DateTime).FullName))
-                    .BindAttribute(attribute =>
+                    .BoundAttributeDescriptor(attribute =>
                         attribute
                         .Name("name")
                         .PropertyName("Name")
@@ -1215,7 +1110,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 descriptors,
                 documentContent,
                 (MarkupBlock)expectedOutput,
-                expectedErrors: Enumerable.Empty<RazorError>());
+                expectedErrors: Enumerable.Empty<RazorDiagnostic>());
         }
 
         public static IEnumerable<object[]> IncompleteHelperBlockData
@@ -1224,8 +1119,6 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             {
                 var factory = new SpanFactory();
                 var blockFactory = new BlockFactory(factory);
-                var malformedErrorFormat = "Found a malformed '{0}' tag helper. Tag helpers must have a start and " +
-                                           "end tag or be self closing.";
 
                 yield return new object[]
                 {
@@ -1234,7 +1127,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                         new MarkupTagHelperBlock("p",
                             new List<TagHelperAttributeNode>
                             {
-                                new TagHelperAttributeNode("class", factory.Markup("foo")),
+                                new TagHelperAttributeNode("class", factory.Markup("foo"), AttributeStructure.NoQuotes),
                                 new TagHelperAttributeNode(
                                     "dynamic",
                                     new MarkupBlock(
@@ -1248,20 +1141,18 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                                 factory.CodeTransition(),
                                                     factory.Code("DateTime.Now")
                                                         .AsImplicitExpression(CSharpCodeParser.DefaultKeywords)
-                                                        .Accepts(AcceptedCharacters.NonWhiteSpace)))),
-                                    HtmlAttributeValueStyle.DoubleQuotes),
-                                new TagHelperAttributeNode("style", factory.Markup("color:red;"))
+                                                        .Accepts(AcceptedCharactersInternal.NonWhiteSpace)))),
+                                    AttributeStructure.DoubleQuotes),
+                                new TagHelperAttributeNode("style", factory.Markup("color:red;"), AttributeStructure.NoQuotes)
                             },
                             new MarkupTagHelperBlock("strong")),
                             blockFactory.MarkupTagBlock("</strong>")),
-                    new RazorError[]
+                    new RazorDiagnostic[]
                     {
-                        new RazorError(
-                            string.Format(CultureInfo.InvariantCulture, malformedErrorFormat, "strong"),
-                            absoluteIndex: 53, lineIndex: 0, columnIndex: 53, length: 6),
-                        new RazorError(
-                            string.Format(CultureInfo.InvariantCulture, malformedErrorFormat, "strong"),
-                            absoluteIndex: 66, lineIndex: 0, columnIndex: 66, length: 6)
+                        RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                            new SourceSpan(absoluteIndex: 53, lineIndex: 0, characterIndex: 53, length: 6), "strong"),
+                        RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                            new SourceSpan(absoluteIndex: 66, lineIndex: 0, characterIndex: 66, length: 6), "strong")
                     }
                 };
                 yield return new object[]
@@ -1274,11 +1165,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new MarkupTagHelperBlock("strong",
                                 factory.Markup("World")),
                             blockFactory.MarkupTagBlock("</div>"))),
-                    new RazorError[]
+                    new RazorDiagnostic[]
                     {
-                        new RazorError(
-                            string.Format(CultureInfo.InvariantCulture, malformedErrorFormat, "p"),
-                            absoluteIndex: 6, lineIndex: 0, columnIndex: 6, length: 1)
+                        RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                            new SourceSpan(absoluteIndex: 6, lineIndex: 0, characterIndex: 6, length: 1), "p")
                     }
                 };
                 yield return new object[]
@@ -1291,14 +1181,12 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new MarkupTagHelperBlock("strong",
                                 factory.Markup("World"),
                                 blockFactory.MarkupTagBlock("</div>")))),
-                    new RazorError[]
+                    new RazorDiagnostic[]
                     {
-                        new RazorError(
-                            string.Format(CultureInfo.InvariantCulture, malformedErrorFormat, "p"),
-                            absoluteIndex: 6, lineIndex: 0, columnIndex: 6, length: 1),
-                        new RazorError(
-                            string.Format(CultureInfo.InvariantCulture, malformedErrorFormat, "strong"),
-                            absoluteIndex: 15, lineIndex: 0, columnIndex: 15, length: 6)
+                        RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                            new SourceSpan(absoluteIndex: 6, lineIndex: 0, characterIndex: 6, length: 1), "p"),
+                        RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                            new SourceSpan(absoluteIndex: 15, lineIndex: 0, characterIndex: 15, length: 6), "strong")
                     }
                 };
                 yield return new object[]
@@ -1317,12 +1205,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                     new TagHelperAttributeNode("style", factory.Markup("color:red;"))
                                 },
                                 factory.Markup("World")))),
-                    new RazorError[]
+                    new RazorDiagnostic[]
                     {
-                        new RazorError(
-                            string.Format(CultureInfo.InvariantCulture, malformedErrorFormat, "p"),
-                            new SourceLocation(1, 0, 1),
-                            length: 1)
+                        RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                            new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p")
                     }
                 };
             }
@@ -1335,7 +1221,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             object expectedOutput,
             object expectedErrors)
         {
-            RunParseTreeRewriterTest(documentContent, (MarkupBlock)expectedOutput, (RazorError[])expectedErrors, "strong", "p");
+            RunParseTreeRewriterTest(documentContent, (MarkupBlock)expectedOutput, (RazorDiagnostic[])expectedErrors, "strong", "p");
         }
 
 
@@ -1435,7 +1321,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 factory.CodeTransition(),
                                     factory.Code("DateTime.Now")
                                         .AsImplicitExpression(CSharpCodeParser.DefaultKeywords)
-                                        .Accepts(AcceptedCharacters.NonWhiteSpace)))));
+                                        .Accepts(AcceptedCharactersInternal.NonWhiteSpace)))));
                 var doWhileString = "@do { var foo = bar; <text>Foo</text> foo++; } while (foo<bar>);";
                 var doWhile = new Func<int, SyntaxTreeNode>(index =>
                     new MarkupBlock(
@@ -1447,17 +1333,17 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 new SourceLocation(index, 0, index)),
                             new StatementBlock(
                                 factory.CodeTransition(),
-                                factory.Code("do { var foo = bar;").AsStatement(),
+                                factory.Code("do { var foo = bar; ").AsStatement(),
                                 new MarkupBlock(
                                     new MarkupTagBlock(
                                         factory.MarkupTransition("<text>")),
-                                    factory.Markup("Foo").Accepts(AcceptedCharacters.None),
+                                    factory.Markup("Foo").Accepts(AcceptedCharactersInternal.None),
                                     new MarkupTagBlock(
                                         factory.MarkupTransition("</text>"))),
                                 factory
                                     .Code(" foo++; } while (foo<bar>);")
                                     .AsStatement()
-                                    .Accepts(AcceptedCharacters.None)))));
+                                    .Accepts(AcceptedCharactersInternal.None)))));
 
                 var currentFormattedString = "<p class=\"{0}\" style='{0}'></p>";
                 yield return new object[]
@@ -1468,7 +1354,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                         new List<TagHelperAttributeNode>
                         {
                             new TagHelperAttributeNode("class", dateTimeNow(10)),
-                            new TagHelperAttributeNode("style", dateTimeNow(32), HtmlAttributeValueStyle.SingleQuotes)
+                            new TagHelperAttributeNode("style", dateTimeNow(32), AttributeStructure.SingleQuotes)
                         }))
                 };
                 yield return new object[]
@@ -1479,7 +1365,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                         new List<TagHelperAttributeNode>
                         {
                             new TagHelperAttributeNode("class", doWhile(10)),
-                            new TagHelperAttributeNode("style", doWhile(83), HtmlAttributeValueStyle.SingleQuotes)
+                            new TagHelperAttributeNode("style", doWhile(83), AttributeStructure.SingleQuotes)
                         }))
                 };
 
@@ -1492,7 +1378,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new List<TagHelperAttributeNode>
                             {
                                 new TagHelperAttributeNode("class", dateTimeNow(10)),
-                                new TagHelperAttributeNode("style", dateTimeNow(32), HtmlAttributeValueStyle.SingleQuotes)
+                                new TagHelperAttributeNode("style", dateTimeNow(32), AttributeStructure.SingleQuotes)
                             },
                             factory.Markup("Hello World")))
                 };
@@ -1504,7 +1390,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new List<TagHelperAttributeNode>
                             {
                                 new TagHelperAttributeNode("class", doWhile(10)),
-                                new TagHelperAttributeNode("style", doWhile(83), HtmlAttributeValueStyle.SingleQuotes)
+                                new TagHelperAttributeNode("style", doWhile(83), AttributeStructure.SingleQuotes)
                             },
                             factory.Markup("Hello World")))
                 };
@@ -1524,7 +1410,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                         new MarkupTagHelperBlock("p",
                             new List<TagHelperAttributeNode>
                             {
-                                new TagHelperAttributeNode("style", dateTimeNow(45), HtmlAttributeValueStyle.SingleQuotes)
+                                new TagHelperAttributeNode("style", dateTimeNow(45), AttributeStructure.SingleQuotes)
                             },
                             factory.Markup("World")))
                 };
@@ -1542,7 +1428,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                         new MarkupTagHelperBlock("p",
                             new List<TagHelperAttributeNode>
                             {
-                                new TagHelperAttributeNode("style", doWhile(96), HtmlAttributeValueStyle.SingleQuotes)
+                                new TagHelperAttributeNode("style", doWhile(96), AttributeStructure.SingleQuotes)
                             },
                             factory.Markup("World")))
                 };
@@ -1557,7 +1443,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new List<TagHelperAttributeNode>
                             {
                                 new TagHelperAttributeNode("class", dateTimeNow(10)),
-                                new TagHelperAttributeNode("style", dateTimeNow(32), HtmlAttributeValueStyle.SingleQuotes)
+                                new TagHelperAttributeNode("style", dateTimeNow(32), AttributeStructure.SingleQuotes)
                             },
                             factory.Markup("Hello World "),
                             new MarkupTagBlock(
@@ -1575,7 +1461,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                             factory.CodeTransition(),
                                             factory.Code("DateTime.Now")
                                                    .AsImplicitExpression(CSharpCodeParser.DefaultKeywords)
-                                                   .Accepts(AcceptedCharacters.NonWhiteSpace))),
+                                                   .Accepts(AcceptedCharactersInternal.NonWhiteSpace))),
                                     factory.Markup("\"").With(SpanChunkGenerator.Null)),
                                 factory.Markup(">")),
                             factory.Markup("inside of strong tag"),
@@ -1604,7 +1490,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                         factory.CodeTransition(),
                                             factory.Code("DateTime.Now")
                                                 .AsImplicitExpression(CSharpCodeParser.DefaultKeywords)
-                                                .Accepts(AcceptedCharacters.NonWhiteSpace));
+                                                .Accepts(AcceptedCharactersInternal.NonWhiteSpace));
                 var doWhileString = "@do { var foo = bar; <p>Foo</p> foo++; } while (foo<bar>);";
                 var doWhile = new StatementBlock(
                                factory.CodeTransition(),
@@ -1613,10 +1499,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                     factory.Markup(" "),
                                     new MarkupTagHelperBlock("p",
                                         factory.Markup("Foo")),
-                                    factory.Markup(" ").Accepts(AcceptedCharacters.None)),
+                                    factory.Markup(" ").Accepts(AcceptedCharactersInternal.None)),
                                factory.Code("foo++; } while (foo<bar>);")
                                 .AsStatement()
-                                .Accepts(AcceptedCharacters.None));
+                                .Accepts(AcceptedCharactersInternal.None));
 
                 var currentFormattedString = "<p>{0}</p>";
                 yield return new object[]
@@ -1718,7 +1604,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                     factory.CodeTransition(),
                         factory.Code("DateTime.Now")
                             .AsImplicitExpression(CSharpCodeParser.DefaultKeywords)
-                            .Accepts(AcceptedCharacters.NonWhiteSpace));
+                            .Accepts(AcceptedCharactersInternal.NonWhiteSpace));
 
                 return new TheoryData<string, MarkupBlock>
                 {
@@ -1858,7 +1744,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                             new MarkupTagHelperBlock("p",
                             new List<TagHelperAttributeNode>
                             {
-                                new TagHelperAttributeNode("class",  new MarkupBlock(), HtmlAttributeValueStyle.SingleQuotes)
+                                new TagHelperAttributeNode("class",  new MarkupBlock(), AttributeStructure.SingleQuotes)
                             }))
                     },
                     {
@@ -1872,7 +1758,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 new TagHelperAttributeNode(
                                     "class",
                                     factory.Markup("").With(SpanChunkGenerator.Null),
-                                    HtmlAttributeValueStyle.DoubleQuotes),
+                                    AttributeStructure.DoubleQuotes),
                             }))
                     },
                     {
@@ -1882,11 +1768,11 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("class1", new MarkupBlock(), HtmlAttributeValueStyle.SingleQuotes),
+                                    new TagHelperAttributeNode("class1", new MarkupBlock(), AttributeStructure.SingleQuotes),
                                     new TagHelperAttributeNode(
                                         "class2",
                                         factory.Markup(string.Empty).With(SpanChunkGenerator.Null),
-                                        HtmlAttributeValueStyle.DoubleQuotes),
+                                        AttributeStructure.DoubleQuotes),
                                     new TagHelperAttributeNode("class3", new MarkupBlock()),
                                 }))
                     },
@@ -1897,12 +1783,12 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("class1",  new MarkupBlock(), HtmlAttributeValueStyle.SingleQuotes),
+                                    new TagHelperAttributeNode("class1",  new MarkupBlock(), AttributeStructure.SingleQuotes),
                                     new TagHelperAttributeNode("class2",  new MarkupBlock()),
                                     new TagHelperAttributeNode(
                                         "class3",
                                         factory.Markup(string.Empty).With(SpanChunkGenerator.Null),
-                                        HtmlAttributeValueStyle.DoubleQuotes),
+                                        AttributeStructure.DoubleQuotes),
                                 }))
                     },
                 };
@@ -1913,7 +1799,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         [MemberData(nameof(EmptyAttributeTagHelperData))]
         public void Rewrite_UnderstandsEmptyAttributeTagHelpers(string documentContent, object expectedOutput)
         {
-            RunParseTreeRewriterTest(documentContent, (MarkupBlock)expectedOutput, new RazorError[0], "p");
+            RunParseTreeRewriterTest(documentContent, (MarkupBlock)expectedOutput, new RazorDiagnostic[0], "p");
         }
 
         public static TheoryData EmptyTagHelperBoundAttributeData
@@ -1921,13 +1807,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             get
             {
                 var factory = new SpanFactory();
-                var emptyAttributeError =
-                    "Attribute '{0}' on tag helper element '{1}' requires a value. Tag helper bound attributes of " +
-                    "type '{2}' cannot be empty or contain only whitespace.";
                 var boolTypeName = typeof(bool).FullName;
 
                 // documentContent, expectedOutput, expectedErrors
-                return new TheoryData<string, MarkupBlock, RazorError[]>
+                return new TheoryData<string, MarkupBlock, RazorDiagnostic[]>
                 {
                     {
                         "<myth bound='' />",
@@ -1937,13 +1820,15 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("bound", new MarkupBlock(), HtmlAttributeValueStyle.SingleQuotes)
+                                    new TagHelperAttributeNode("bound", new MarkupBlock(), AttributeStructure.SingleQuotes)
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(emptyAttributeError, "bound", "myth", boolTypeName),
-                                absoluteIndex: 6, lineIndex: 0, columnIndex: 6, length: 5)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(6, 0, 6, 5),
+                                "bound",
+                                "myth",
+                                boolTypeName)
                         }
                     },
                     {
@@ -1954,9 +1839,12 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("bound", factory.CodeMarkup("    true"), HtmlAttributeValueStyle.SingleQuotes)
+                                    new TagHelperAttributeNode(
+                                        "bound",
+                                        factory.CodeMarkup("    true").With(new ExpressionChunkGenerator()),
+                                        AttributeStructure.SingleQuotes)
                                 })),
-                        new RazorError[0]
+                        new RazorDiagnostic[0]
                     },
                     {
                         "<myth bound='    ' />",
@@ -1966,13 +1854,18 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("bound", factory.CodeMarkup("    "), HtmlAttributeValueStyle.SingleQuotes)
+                                    new TagHelperAttributeNode(
+                                        "bound",
+                                        factory.CodeMarkup("    ").With(new ExpressionChunkGenerator()),
+                                        AttributeStructure.SingleQuotes)
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(emptyAttributeError, "bound", "myth", boolTypeName),
-                                absoluteIndex: 6, lineIndex: 0, columnIndex: 6, length: 5)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(6, 0, 6, 5),
+                                "bound",
+                                "myth",
+                                boolTypeName),
                         }
                     },
                     {
@@ -1983,17 +1876,21 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("bound", new MarkupBlock(), HtmlAttributeValueStyle.SingleQuotes),
+                                    new TagHelperAttributeNode("bound", new MarkupBlock(), AttributeStructure.SingleQuotes),
                                     new TagHelperAttributeNode("bound", new MarkupBlock())
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(emptyAttributeError, "bound", "myth", boolTypeName),
-                                absoluteIndex: 6, lineIndex: 0, columnIndex: 6, length: 5),
-                            new RazorError(
-                                string.Format(emptyAttributeError, "bound", "myth", boolTypeName),
-                                absoluteIndex: 16, lineIndex: 0, columnIndex: 16, length: 5)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(6, 0, 6, 5),
+                                "bound",
+                                "myth",
+                                boolTypeName),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(16, 0, 16, 5),
+                                "bound",
+                                "myth",
+                                boolTypeName),
                         }
                     },
                     {
@@ -2004,17 +1901,26 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("bound", factory.CodeMarkup(" "), HtmlAttributeValueStyle.SingleQuotes),
-                                    new TagHelperAttributeNode("bound", factory.CodeMarkup("  "))
+                                    new TagHelperAttributeNode(
+                                        "bound",
+                                        factory.CodeMarkup(" ").With(new ExpressionChunkGenerator()),
+                                        AttributeStructure.SingleQuotes),
+                                    new TagHelperAttributeNode(
+                                        "bound",
+                                        factory.CodeMarkup("  "))
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(emptyAttributeError, "bound", "myth", boolTypeName),
-                                absoluteIndex: 6, lineIndex: 0, columnIndex: 6, length: 5),
-                            new RazorError(
-                                string.Format(emptyAttributeError, "bound", "myth", boolTypeName),
-                                absoluteIndex: 17, lineIndex: 0, columnIndex: 17, length: 5)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(6, 0, 6, 5),
+                                "bound",
+                                "myth",
+                                boolTypeName),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(17, 0, 17, 5),
+                                "bound",
+                                "myth",
+                                boolTypeName),
                         }
                     },
                     {
@@ -2025,17 +1931,22 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("bound", factory.CodeMarkup("true"), HtmlAttributeValueStyle.SingleQuotes),
+                                    new TagHelperAttributeNode(
+                                        "bound",
+                                        factory.CodeMarkup("true").With(new ExpressionChunkGenerator()),
+                                        AttributeStructure.SingleQuotes),
                                     new TagHelperAttributeNode(
                                         "bound",
                                         factory.CodeMarkup(string.Empty).With(SpanChunkGenerator.Null),
-                                        HtmlAttributeValueStyle.DoubleQuotes)
+                                        AttributeStructure.DoubleQuotes)
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(emptyAttributeError, "bound", "myth", boolTypeName),
-                                absoluteIndex: 19, lineIndex: 0, columnIndex: 19, length: 5)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(19, 0, 19, 5),
+                                "bound",
+                                "myth",
+                                boolTypeName),
                         }
                     },
                     {
@@ -2049,14 +1960,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                     new TagHelperAttributeNode(
                                         "bound",
                                         factory.CodeMarkup(string.Empty).With(SpanChunkGenerator.Null),
-                                        HtmlAttributeValueStyle.DoubleQuotes),
-                                    new TagHelperAttributeNode("name", new MarkupBlock(), HtmlAttributeValueStyle.SingleQuotes)
+                                        AttributeStructure.DoubleQuotes),
+                                    new TagHelperAttributeNode("name", new MarkupBlock(), AttributeStructure.SingleQuotes)
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(emptyAttributeError, "bound", "myth", boolTypeName),
-                                absoluteIndex: 6, lineIndex: 0, columnIndex: 6, length: 5),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(6, 0, 6, 5),
+                                "bound",
+                                "myth",
+                                boolTypeName),
                         }
                     },
                     {
@@ -2070,14 +1983,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                     new TagHelperAttributeNode(
                                         "bound",
                                         factory.CodeMarkup(string.Empty).With(SpanChunkGenerator.Null),
-                                        HtmlAttributeValueStyle.DoubleQuotes),
-                                    new TagHelperAttributeNode("name", factory.Markup("  "), HtmlAttributeValueStyle.SingleQuotes)
+                                        AttributeStructure.DoubleQuotes),
+                                    new TagHelperAttributeNode("name", factory.Markup("  "), AttributeStructure.SingleQuotes)
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(emptyAttributeError, "bound", "myth", boolTypeName),
-                                absoluteIndex: 6, lineIndex: 0, columnIndex: 6, length: 5),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(6, 0, 6, 5),
+                                "bound",
+                                "myth",
+                                boolTypeName),
                         }
                     },
                     {
@@ -2088,22 +2003,27 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("bound", factory.CodeMarkup("true"), HtmlAttributeValueStyle.SingleQuotes),
-                                    new TagHelperAttributeNode("name", factory.Markup("john"), HtmlAttributeValueStyle.SingleQuotes),
+                                    new TagHelperAttributeNode(
+                                        "bound",
+                                        factory.CodeMarkup("true").With(new ExpressionChunkGenerator()),
+                                        AttributeStructure.SingleQuotes),
+                                    new TagHelperAttributeNode("name", factory.Markup("john"), AttributeStructure.SingleQuotes),
                                     new TagHelperAttributeNode(
                                         "bound",
                                         factory.CodeMarkup(string.Empty).With(SpanChunkGenerator.Null),
-                                        HtmlAttributeValueStyle.DoubleQuotes),
+                                        AttributeStructure.DoubleQuotes),
                                     new TagHelperAttributeNode(
                                         "name",
                                         factory.Markup(string.Empty).With(SpanChunkGenerator.Null),
-                                        HtmlAttributeValueStyle.DoubleQuotes)
+                                        AttributeStructure.DoubleQuotes)
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(emptyAttributeError, "bound", "myth", boolTypeName),
-                                absoluteIndex: 31, lineIndex: 0, columnIndex: 31, length: 5),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(31, 0, 31, 5),
+                                "bound",
+                                "myth",
+                                boolTypeName),
                         }
                     },
                     {
@@ -2114,13 +2034,15 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("BouND", new MarkupBlock(), HtmlAttributeValueStyle.SingleQuotes)
+                                    new TagHelperAttributeNode("BouND", new MarkupBlock(), AttributeStructure.SingleQuotes)
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(emptyAttributeError, "BouND", "myth", boolTypeName),
-                                absoluteIndex: 6, lineIndex: 0, columnIndex: 6, length: 5),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(6, 0, 6, 5),
+                                "BouND",
+                                "myth",
+                                boolTypeName),
                         }
                     },
                     {
@@ -2131,17 +2053,21 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("BOUND", new MarkupBlock(), HtmlAttributeValueStyle.SingleQuotes),
+                                    new TagHelperAttributeNode("BOUND", new MarkupBlock(), AttributeStructure.SingleQuotes),
                                     new TagHelperAttributeNode("bOUnd", new MarkupBlock())
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(emptyAttributeError, "BOUND", "myth", boolTypeName),
-                                absoluteIndex: 6, lineIndex: 0, columnIndex: 6, length: 5),
-                            new RazorError(
-                                string.Format(emptyAttributeError, "bOUnd", "myth", boolTypeName),
-                                absoluteIndex: 18, lineIndex: 0, columnIndex: 18, length: 5)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(6, 0, 6, 5),
+                                "BOUND",
+                                "myth",
+                                boolTypeName),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(18, 0, 18, 5),
+                                "bOUnd",
+                                "myth",
+                                boolTypeName),
                         }
                     },
                     {
@@ -2154,14 +2080,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                     new TagHelperAttributeNode(
                                         "BOUND",
                                         factory.CodeMarkup(string.Empty).With(SpanChunkGenerator.Null),
-                                        HtmlAttributeValueStyle.DoubleQuotes),
-                                    new TagHelperAttributeNode("nAMe", factory.Markup("john"), HtmlAttributeValueStyle.SingleQuotes)
+                                        AttributeStructure.DoubleQuotes),
+                                    new TagHelperAttributeNode("nAMe", factory.Markup("john"), AttributeStructure.SingleQuotes)
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(emptyAttributeError, "BOUND", "myth", boolTypeName),
-                                absoluteIndex: 6, lineIndex: 0, columnIndex: 6, length: 5)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(6, 0, 6, 5),
+                                "BOUND",
+                                "myth",
+                                boolTypeName),
                         }
                     },
                     {
@@ -2177,16 +2105,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                             "bound",
                                             new MarkupBlock(
                                                 new MarkupBlock(
-                                                factory.CodeMarkup("    "),
+                                                factory.CodeMarkup("    ").With(new ExpressionChunkGenerator()),
                                                 new ExpressionBlock(
-                                                    factory.CSharpCodeMarkup("@"),
+                                                    factory.CSharpCodeMarkup("@").With(new ExpressionChunkGenerator()),
                                                     factory.CSharpCodeMarkup("true")
                                                         .With(new ExpressionChunkGenerator()))),
-                                                factory.CodeMarkup("  ")),
-                                            HtmlAttributeValueStyle.SingleQuotes)
+                                                factory.CodeMarkup("  ").With(new ExpressionChunkGenerator())),
+                                            AttributeStructure.SingleQuotes)
                                     }
                                 })),
-                        new RazorError[0]
+                        new RazorDiagnostic[0]
                     },
                     {
                         "<myth bound='    @(true)  ' />",
@@ -2201,18 +2129,18 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                             "bound",
                                             new MarkupBlock(
                                                 new MarkupBlock(
-                                                factory.CodeMarkup("    "),
+                                                factory.CodeMarkup("    ").With(new ExpressionChunkGenerator()),
                                                 new ExpressionBlock(
-                                                    factory.CSharpCodeMarkup("@"),
-                                                    factory.CSharpCodeMarkup("("),
+                                                    factory.CSharpCodeMarkup("@").With(new ExpressionChunkGenerator()),
+                                                    factory.CSharpCodeMarkup("(").With(new ExpressionChunkGenerator()),
                                                     factory.CSharpCodeMarkup("true")
                                                         .With(new ExpressionChunkGenerator()),
-                                                    factory.CSharpCodeMarkup(")"))),
-                                                factory.CodeMarkup("  ")),
-                                            HtmlAttributeValueStyle.SingleQuotes)
+                                                    factory.CSharpCodeMarkup(")").With(new ExpressionChunkGenerator()))),
+                                                factory.CodeMarkup("  ").With(new ExpressionChunkGenerator())),
+                                            AttributeStructure.SingleQuotes)
                                     }
                                 })),
-                        new RazorError[0]
+                        new RazorDiagnostic[0]
                     },
                 };
             }
@@ -2229,13 +2157,13 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             var descriptors = new TagHelperDescriptor[]
             {
                 TagHelperDescriptorBuilder.Create("mythTagHelper", "SomeAssembly")
-                    .TagMatchingRule(rule => rule.RequireTagName("myth"))
-                    .BindAttribute(attribute => 
+                    .TagMatchingRuleDescriptor(rule => rule.RequireTagName("myth"))
+                    .BoundAttributeDescriptor(attribute =>
                         attribute
                         .Name("bound")
                         .PropertyName("Bound")
                         .TypeName(typeof(bool).FullName))
-                    .BindAttribute(attribute =>
+                    .BoundAttributeDescriptor(attribute =>
                         attribute
                         .Name("name")
                         .PropertyName("Name")
@@ -2244,7 +2172,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             };
 
             // Act & Assert
-            EvaluateData(descriptors, documentContent, (MarkupBlock)expectedOutput, (RazorError[])expectedErrors);
+            EvaluateData(descriptors, documentContent, (MarkupBlock)expectedOutput, (RazorDiagnostic[])expectedErrors);
         }
 
         public static IEnumerable<object[]> ScriptBlockData
@@ -2327,8 +2255,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                         "class",
                                         new MarkupBlock(
                                             new MarkupBlock(
-                                                factory.Markup("@").Accepts(AcceptedCharacters.None),
-                                                factory.Markup("@").With(SpanChunkGenerator.Null).Accepts(AcceptedCharacters.None)),
+                                                factory.Markup("@").Accepts(AcceptedCharactersInternal.None),
+                                                factory.Markup("@").With(SpanChunkGenerator.Null).Accepts(AcceptedCharactersInternal.None)),
                                             factory.Markup("foo@bar.com"))),
                                     new TagHelperAttributeNode("style", factory.Markup("color:red;"))
                                 }),
@@ -2437,7 +2365,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 factory.CodeTransition(),
                                     factory.Code("DateTime.Now")
                                         .AsImplicitExpression(CSharpCodeParser.DefaultKeywords)
-                                        .Accepts(AcceptedCharacters.NonWhiteSpace)))));
+                                        .Accepts(AcceptedCharactersInternal.NonWhiteSpace)))));
 
                 yield return new object[]
                 {
@@ -2446,9 +2374,9 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                         new MarkupTagHelperBlock("p",
                         new List<TagHelperAttributeNode>
                         {
-                            new TagHelperAttributeNode("class", factory.Markup("foo")),
+                            new TagHelperAttributeNode("class", factory.Markup("foo"), AttributeStructure.NoQuotes),
                             new TagHelperAttributeNode("dynamic", dateTimeNow(21)),
-                            new TagHelperAttributeNode("style", factory.Markup("color:red;"))
+                            new TagHelperAttributeNode("style", factory.Markup("color:red;"), AttributeStructure.NoQuotes)
                         }))
                 };
                 yield return new object[]
@@ -2458,9 +2386,9 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                         new MarkupTagHelperBlock("p",
                             new List<TagHelperAttributeNode>
                             {
-                                new TagHelperAttributeNode("class", factory.Markup("foo")),
+                                new TagHelperAttributeNode("class", factory.Markup("foo"), AttributeStructure.NoQuotes),
                                 new TagHelperAttributeNode("dynamic", dateTimeNow(21)),
-                                new TagHelperAttributeNode("style", factory.Markup("color:red;"))
+                                new TagHelperAttributeNode("style", factory.Markup("color:red;"), AttributeStructure.NoQuotes)
                             },
                             factory.Markup("Hello World")))
                 };
@@ -2471,17 +2399,17 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                         new MarkupTagHelperBlock("p",
                             new List<TagHelperAttributeNode>
                             {
-                                new TagHelperAttributeNode("class", factory.Markup("foo")),
+                                new TagHelperAttributeNode("class", factory.Markup("foo"), AttributeStructure.NoQuotes),
                                 new TagHelperAttributeNode("dynamic", dateTimeNow(21)),
                                 new TagHelperAttributeNode(
                                     "style",
                                     new MarkupBlock(
                                         factory.Markup("color"),
                                          new MarkupBlock(
-                                            factory.Markup("@").Accepts(AcceptedCharacters.None),
-                                            factory.Markup("@").With(SpanChunkGenerator.Null).Accepts(AcceptedCharacters.None)),
+                                            factory.Markup("@").Accepts(AcceptedCharactersInternal.None),
+                                            factory.Markup("@").With(SpanChunkGenerator.Null).Accepts(AcceptedCharactersInternal.None)),
                                         factory.Markup(":red;")),
-                                    HtmlAttributeValueStyle.DoubleQuotes)
+                                    AttributeStructure.DoubleQuotes)
                             },
                             factory.Markup("Hello World")))
                 };
@@ -2492,7 +2420,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                         new MarkupTagHelperBlock("p",
                             new List<TagHelperAttributeNode>
                             {
-                                new TagHelperAttributeNode("class", factory.Markup("foo")),
+                                new TagHelperAttributeNode("class", factory.Markup("foo"), AttributeStructure.NoQuotes),
                                 new TagHelperAttributeNode("dynamic", dateTimeNow(21))
                             },
                             factory.Markup("Hello")),
@@ -2500,7 +2428,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                         new MarkupTagHelperBlock("p",
                             new List<TagHelperAttributeNode>
                             {
-                                new TagHelperAttributeNode("style", factory.Markup("color:red;")),
+                                new TagHelperAttributeNode("style", factory.Markup("color:red;"), AttributeStructure.NoQuotes),
                                 new TagHelperAttributeNode("dynamic", dateTimeNow(73))
                             },
                             factory.Markup("World")))
@@ -2512,9 +2440,9 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                         new MarkupTagHelperBlock("p",
                             new List<TagHelperAttributeNode>
                             {
-                                new TagHelperAttributeNode("class", factory.Markup("foo")),
+                                new TagHelperAttributeNode("class", factory.Markup("foo"), AttributeStructure.NoQuotes),
                                 new TagHelperAttributeNode("dynamic", dateTimeNow(21)),
-                                new TagHelperAttributeNode("style", factory.Markup("color:red;"))
+                                new TagHelperAttributeNode("style", factory.Markup("color:red;"), AttributeStructure.NoQuotes)
                             },
                             factory.Markup("Hello World "),
                             new MarkupTagBlock(
@@ -2688,7 +2616,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                     factory.CodeTransition(),
                         factory.Code("DateTime.Now")
                             .AsImplicitExpression(CSharpCodeParser.DefaultKeywords)
-                            .Accepts(AcceptedCharacters.NonWhiteSpace));
+                            .Accepts(AcceptedCharactersInternal.NonWhiteSpace));
 
                 // documentContent, expectedOutput
                 return new TheoryData<string, MarkupBlock>
@@ -2704,7 +2632,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                     new TagHelperAttributeNode(
                                         "data-required",
                                         new MarkupBlock(dateTimeNow),
-                                        HtmlAttributeValueStyle.SingleQuotes),
+                                        AttributeStructure.SingleQuotes),
                                 }))
                     },
                     {
@@ -2715,7 +2643,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("data-required", factory.Markup("value"), HtmlAttributeValueStyle.SingleQuotes),
+                                    new TagHelperAttributeNode("data-required", factory.Markup("value"), AttributeStructure.SingleQuotes),
                                 }))
                     },
                     {
@@ -2729,7 +2657,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                     new TagHelperAttributeNode(
                                         "data-required",
                                         new MarkupBlock(factory.Markup("prefix "), dateTimeNow),
-                                        HtmlAttributeValueStyle.SingleQuotes),
+                                        AttributeStructure.SingleQuotes),
                                 }))
                     },
                     {
@@ -2743,7 +2671,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                     new TagHelperAttributeNode(
                                         "data-required",
                                         new MarkupBlock(dateTimeNow, factory.Markup(" suffix")),
-                                        HtmlAttributeValueStyle.SingleQuotes),
+                                        AttributeStructure.SingleQuotes),
                                 }))
                     },
                     {
@@ -2760,7 +2688,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                             factory.Markup("prefix "),
                                             dateTimeNow,
                                             factory.Markup(" suffix")),
-                                        HtmlAttributeValueStyle.SingleQuotes),
+                                        AttributeStructure.SingleQuotes),
                                 }))
                     },
                     {
@@ -2771,15 +2699,15 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("pre-attribute", value: null, valueStyle: HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("pre-attribute", value: null, attributeStructure: AttributeStructure.Minimized),
                                     new TagHelperAttributeNode(
                                         "data-required",
                                         new MarkupBlock(
                                             factory.Markup("prefix "),
                                             dateTimeNow,
                                             factory.Markup(" suffix")),
-                                        HtmlAttributeValueStyle.SingleQuotes),
-                                    new TagHelperAttributeNode("post-attribute", value: null, valueStyle: HtmlAttributeValueStyle.Minimized),
+                                        AttributeStructure.SingleQuotes),
+                                    new TagHelperAttributeNode("post-attribute", value: null, attributeStructure: AttributeStructure.Minimized),
                                 }))
                     },
                     {
@@ -2796,7 +2724,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                             dateTimeNow,
                                             factory.Markup(" middle "),
                                             dateTimeNow),
-                                        HtmlAttributeValueStyle.SingleQuotes),
+                                        AttributeStructure.SingleQuotes),
                                 }))
                     },
                 };
@@ -2815,10 +2743,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                         factory.EmptyHtml(),
                         new StatementBlock(
                             factory.CodeTransition(),
-                            factory.MetaCode("{").Accepts(AcceptedCharacters.None),
+                            factory.MetaCode("{").Accepts(AcceptedCharactersInternal.None),
                             insideBuilder(),
                             factory.EmptyCSharp().AsStatement(),
-                            factory.MetaCode("}").Accepts(AcceptedCharacters.None)),
+                            factory.MetaCode("}").Accepts(AcceptedCharactersInternal.None)),
                         factory.EmptyHtml());
                 };
 
@@ -2840,7 +2768,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             object expectedOutput)
         {
             // Act & Assert
-            RunParseTreeRewriterTest(documentContent, (MarkupBlock)expectedOutput, Enumerable.Empty<RazorError>(), "input");
+            RunParseTreeRewriterTest(documentContent, (MarkupBlock)expectedOutput, Enumerable.Empty<RazorDiagnostic>(), "input");
         }
 
         public static TheoryData MinimizedAttributeData_Document
@@ -2848,11 +2776,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             get
             {
                 var factory = new SpanFactory();
-                var noErrors = new RazorError[0];
-                var errorFormat = "Attribute '{0}' on tag helper element '{1}' requires a value. Tag helper bound " +
-                    "attributes of type '{2}' cannot be empty or contain only whitespace.";
-                var emptyKeyFormat = "The tag helper attribute '{0}' in element '{1}' is missing a key. The " +
-                    "syntax is '<{1} {0}{{ key }}=\"value\">'.";
+                var noErrors = new RazorDiagnostic[0];
                 var stringType = typeof(string).FullName;
                 var intType = typeof(int).FullName;
                 var expressionString = "@DateTime.Now + 1";
@@ -2868,7 +2792,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 factory.CodeTransition(),
                                     factory.Code("DateTime.Now")
                                         .AsImplicitExpression(CSharpCodeParser.DefaultKeywords)
-                                        .Accepts(AcceptedCharacters.NonWhiteSpace))),
+                                        .Accepts(AcceptedCharactersInternal.NonWhiteSpace))),
                         factory.Markup(" +")
                             .With(new LiteralAttributeChunkGenerator(
                                 prefix: new LocationTagged<string>(" ", index + 13, 0, index + 13),
@@ -2879,7 +2803,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 value: new LocationTagged<string>("1", index + 16, 0, index + 16)))));
 
                 // documentContent, expectedOutput, expectedErrors
-                return new TheoryData<string, MarkupBlock, RazorError[]>
+                return new TheoryData<string, MarkupBlock, RazorDiagnostic[]>
                 {
                     {
                         "<input unbound-required />",
@@ -2889,7 +2813,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("unbound-required", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("unbound-required", null, AttributeStructure.Minimized),
                                 })),
                         noErrors
                     },
@@ -2901,12 +2825,15 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagAndEndTag,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("bound-string", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("bound-string", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormat, "bound-string", "p", stringType), 3, 0, 3, 12)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(3, 0, 3, 12),
+                                "bound-string",
+                                "p",
+                                stringType),
                         }
                     },
                     {
@@ -2917,12 +2844,15 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("bound-required-string", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("bound-required-string", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormat, "bound-required-string", "input", stringType), 7, 0, 7, 21)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(7, 0, 7, 21),
+                                "bound-required-string",
+                                "input",
+                                stringType),
                         }
                     },
                     {
@@ -2933,12 +2863,15 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("bound-required-int", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("bound-required-int", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormat, "bound-required-int", "input", intType), 7, 0, 7, 18)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(7, 0, 7, 18),
+                                "bound-required-int",
+                                "input",
+                                intType),
                         }
                     },
                     {
@@ -2949,9 +2882,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagAndEndTag,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("bound-int", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("bound-int", null, AttributeStructure.Minimized),
                                 })),
-                        new[] { new RazorError(string.Format(errorFormat, "bound-int", "p", intType), 3, 0, 3, 9) }
+                        new[]
+                        {
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(3, 0, 3, 9),
+                                "bound-int",
+                                "p",
+                                intType),
+                        }
                     },
                     {
                         "<input int-dictionary/>",
@@ -2961,16 +2901,15 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("int-dictionary", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("int-dictionary", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormat, "int-dictionary", "input", typeof(IDictionary<string, int>).Namespace + ".IDictionary<System.String, System.Int32>"),
-                                absoluteIndex: 7,
-                                lineIndex: 0,
-                                columnIndex: 7,
-                                length: 14),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(7, 0, 7, 14),
+                                "int-dictionary",
+                                "input",
+                                typeof(IDictionary<string, int>).Namespace + ".IDictionary<System.String, System.Int32>"),
                         }
                     },
                     {
@@ -2981,16 +2920,15 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("string-dictionary", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("string-dictionary", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormat, "string-dictionary", "input", typeof(IDictionary<string, string>).Namespace + ".IDictionary<System.String, System.String>"),
-                                absoluteIndex: 7,
-                                lineIndex: 0,
-                                columnIndex: 7,
-                                length: 17),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(7, 0, 7, 17),
+                                "string-dictionary",
+                                "input",
+                                typeof(IDictionary<string, string>).Namespace + ".IDictionary<System.String, System.String>"),
                         }
                     },
                     {
@@ -3001,22 +2939,19 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("int-prefix-", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("int-prefix-", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormat, "int-prefix-", "input", typeof(int).FullName),
-                                absoluteIndex: 7,
-                                lineIndex: 0,
-                                columnIndex: 7,
-                                length: 11),
-                            new RazorError(
-                                string.Format(emptyKeyFormat, "int-prefix-", "input"),
-                                absoluteIndex: 7,
-                                lineIndex: 0,
-                                columnIndex: 7,
-                                length: 11),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(7, 0, 7, 11),
+                                "int-prefix-",
+                                "input",
+                                intType),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperIndexerAttributeNameMustIncludeKey(
+                                new SourceSpan(7, 0, 7, 11),
+                                "int-prefix-",
+                                "input"),
                         }
                     },
                     {
@@ -3027,22 +2962,19 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("string-prefix-", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("string-prefix-", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormat, "string-prefix-", "input", typeof(string).FullName),
-                                absoluteIndex: 7,
-                                lineIndex: 0,
-                                columnIndex: 7,
-                                length: 14),
-                            new RazorError(
-                                string.Format(emptyKeyFormat, "string-prefix-", "input"),
-                                absoluteIndex: 7,
-                                lineIndex: 0,
-                                columnIndex: 7,
-                                length: 14),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(7, 0, 7, 14),
+                                "string-prefix-",
+                                "input",
+                                stringType),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperIndexerAttributeNameMustIncludeKey(
+                                new SourceSpan(7, 0, 7, 14),
+                                "string-prefix-",
+                                "input"),
                         }
                     },
                     {
@@ -3053,16 +2985,15 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("int-prefix-value", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("int-prefix-value", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormat, "int-prefix-value", "input", typeof(int).FullName),
-                                absoluteIndex: 7,
-                                lineIndex: 0,
-                                columnIndex: 7,
-                                length: 16),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(7, 0, 7, 16),
+                                "int-prefix-value",
+                                "input",
+                                intType),
                         }
                     },
                     {
@@ -3073,16 +3004,15 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("string-prefix-value", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("string-prefix-value", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormat, "string-prefix-value", "input", typeof(string).FullName),
-                                absoluteIndex: 7,
-                                lineIndex: 0,
-                                columnIndex: 7,
-                                length: 19),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(7, 0, 7, 19),
+                                "string-prefix-value",
+                                "input",
+                                stringType),
                         }
                     },
                     {
@@ -3093,16 +3023,15 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("int-prefix-value", new MarkupBlock(), HtmlAttributeValueStyle.SingleQuotes),
+                                    new TagHelperAttributeNode("int-prefix-value", new MarkupBlock(), AttributeStructure.SingleQuotes),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormat, "int-prefix-value", "input", typeof(int).FullName),
-                                absoluteIndex: 7,
-                                lineIndex: 0,
-                                columnIndex: 7,
-                                length: 16),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(7, 0, 7, 16),
+                                "int-prefix-value",
+                                "input",
+                                intType),
                         }
                     },
                     {
@@ -3113,9 +3042,9 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("string-prefix-value", new MarkupBlock(), HtmlAttributeValueStyle.SingleQuotes),
+                                    new TagHelperAttributeNode("string-prefix-value", new MarkupBlock(), AttributeStructure.SingleQuotes),
                                 })),
-                        new RazorError[0]
+                        new RazorDiagnostic[0]
                     },
                     {
                         "<input int-prefix-value='3'/>",
@@ -3125,9 +3054,12 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>
                                 {
-                                    new TagHelperAttributeNode("int-prefix-value", factory.CodeMarkup("3"), HtmlAttributeValueStyle.SingleQuotes),
+                                    new TagHelperAttributeNode(
+                                        "int-prefix-value",
+                                        factory.CodeMarkup("3").With(new ExpressionChunkGenerator()),
+                                        AttributeStructure.SingleQuotes),
                                 })),
-                        new RazorError[0]
+                        new RazorDiagnostic[0]
                     },
                     {
                         "<input string-prefix-value='some string' />",
@@ -3142,9 +3074,9 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                         new MarkupBlock(
                                             factory.Markup("some"),
                                             factory.Markup(" string")),
-                                        HtmlAttributeValueStyle.SingleQuotes),
+                                        AttributeStructure.SingleQuotes),
                                 })),
-                        new RazorError[0]
+                        new RazorDiagnostic[0]
                     },
                     {
                         "<input unbound-required bound-required-string />",
@@ -3154,17 +3086,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("unbound-required", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("bound-required-string", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("unbound-required", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("bound-required-string", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormat, "bound-required-string", "input", stringType),
-                                absoluteIndex: 24,
-                                lineIndex: 0,
-                                columnIndex: 24,
-                                length: 21)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(24, 0, 24, 21),
+                                "bound-required-string",
+                                "input",
+                                stringType),
                         }
                     },
                     {
@@ -3175,13 +3106,21 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagAndEndTag,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("bound-int", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("bound-string", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("bound-int", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("bound-string", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(string.Format(errorFormat, "bound-int", "p", intType), 3, 0, 3, 9),
-                            new RazorError(string.Format(errorFormat, "bound-string", "p", stringType), 13, 0, 13, 12),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(3, 0, 3, 9),
+                                "bound-int",
+                                "p",
+                                intType),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(13, 0, 13, 12),
+                                "bound-string",
+                                "p",
+                                stringType),
                         }
                     },
                     {
@@ -3192,20 +3131,22 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("bound-required-int", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("unbound-required", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("bound-required-string", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("bound-required-int", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("unbound-required", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("bound-required-string", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormat, "bound-required-int", "input", intType), 7, 0, 7, 18),
-                            new RazorError(
-                                string.Format(errorFormat, "bound-required-string", "input", stringType),
-                                absoluteIndex: 43,
-                                lineIndex: 0,
-                                columnIndex: 43,
-                                length: 21)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(7, 0, 7, 18),
+                                "bound-required-int",
+                                "input",
+                                intType),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(43, 0, 43, 21),
+                                "bound-required-string",
+                                "input",
+                                stringType),
                         }
                     },
                     {
@@ -3216,15 +3157,27 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagAndEndTag,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("bound-int", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("bound-string", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("bound-string", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("bound-int", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("bound-string", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("bound-string", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(string.Format(errorFormat, "bound-int", "p", intType), 3, 0, 3, 9),
-                            new RazorError(string.Format(errorFormat, "bound-string", "p", stringType), 13, 0, 13, 12),
-                            new RazorError(string.Format(errorFormat, "bound-string", "p", stringType), 26, 0, 26, 12),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(3, 0, 3, 9),
+                                "bound-int",
+                                "p",
+                                intType),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(13, 0, 13, 12),
+                                "bound-string",
+                                "p",
+                                stringType),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(26, 0, 26, 12),
+                                "bound-string",
+                                "p",
+                                stringType),
                         }
                     },
                     {
@@ -3235,8 +3188,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("unbound-required", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("class", factory.Markup("btn"), HtmlAttributeValueStyle.SingleQuotes),
+                                    new TagHelperAttributeNode("unbound-required", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("class", factory.Markup("btn"), AttributeStructure.SingleQuotes),
                                 })),
                         noErrors
                     },
@@ -3248,17 +3201,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagAndEndTag,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("bound-string", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("class", factory.Markup("btn"), HtmlAttributeValueStyle.SingleQuotes),
+                                    new TagHelperAttributeNode("bound-string", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("class", factory.Markup("btn"), AttributeStructure.SingleQuotes),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormat, "bound-string", "p", stringType),
-                                absoluteIndex: 3,
-                                lineIndex: 0,
-                                columnIndex: 3,
-                                length: 12)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(3, 0, 3, 12),
+                                "bound-string",
+                                "p",
+                                stringType),
                         }
                     },
                     {
@@ -3269,8 +3221,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("class", factory.Markup("btn"), HtmlAttributeValueStyle.SingleQuotes),
-                                    new TagHelperAttributeNode("unbound-required", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("class", factory.Markup("btn"), AttributeStructure.SingleQuotes),
+                                    new TagHelperAttributeNode("unbound-required", null, AttributeStructure.Minimized),
                                 })),
                         noErrors
                     },
@@ -3282,17 +3234,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagAndEndTag,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("class", factory.Markup("btn"), HtmlAttributeValueStyle.SingleQuotes),
-                                    new TagHelperAttributeNode("bound-string", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("class", factory.Markup("btn"), AttributeStructure.SingleQuotes),
+                                    new TagHelperAttributeNode("bound-string", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormat, "bound-string", "p", stringType),
-                                absoluteIndex: 15,
-                                lineIndex: 0,
-                                columnIndex: 15,
-                                length: 12)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(15, 0, 15, 12),
+                                "bound-string",
+                                "p",
+                                stringType),
                         }
                     },
                     {
@@ -3303,17 +3254,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("bound-required-string", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("class", factory.Markup("btn"), HtmlAttributeValueStyle.SingleQuotes),
+                                    new TagHelperAttributeNode("bound-required-string", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("class", factory.Markup("btn"), AttributeStructure.SingleQuotes),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormat, "bound-required-string", "input", stringType),
-                                absoluteIndex: 7,
-                                lineIndex: 0,
-                                columnIndex: 7,
-                                length: 21)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(7, 0, 7, 21),
+                                "bound-required-string",
+                                "input",
+                                stringType),
                         }
                     },
                     {
@@ -3324,17 +3274,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("class", factory.Markup("btn"), HtmlAttributeValueStyle.SingleQuotes),
-                                    new TagHelperAttributeNode("bound-required-string", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("class", factory.Markup("btn"), AttributeStructure.SingleQuotes),
+                                    new TagHelperAttributeNode("bound-required-string", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormat, "bound-required-string", "input", stringType),
-                                absoluteIndex: 19,
-                                lineIndex: 0,
-                                columnIndex: 19,
-                                length: 21)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(19, 0, 19, 21),
+                                "bound-required-string",
+                                "input",
+                                stringType),
                         }
                     },
                     {
@@ -3345,13 +3294,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("bound-required-int", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("class", factory.Markup("btn"), HtmlAttributeValueStyle.SingleQuotes),
+                                    new TagHelperAttributeNode("bound-required-int", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("class", factory.Markup("btn"), AttributeStructure.SingleQuotes),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormat, "bound-required-int", "input", intType), 7, 0, 7, 18)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(7, 0, 7, 18),
+                                "bound-required-int",
+                                "input",
+                                intType),
                         }
                     },
                     {
@@ -3362,12 +3314,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagAndEndTag,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("bound-int", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("class", factory.Markup("btn"), HtmlAttributeValueStyle.SingleQuotes),
+                                    new TagHelperAttributeNode("bound-int", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("class", factory.Markup("btn"), AttributeStructure.SingleQuotes),
                                 })),
                         new[]
                         {
-                            new RazorError(string.Format(errorFormat, "bound-int", "p", intType), 3, 0, 3, 9)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(3, 0, 3, 9),
+                                "bound-int",
+                                "p",
+                                intType),
                         }
                     },
                     {
@@ -3378,12 +3334,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("class", factory.Markup("btn"), HtmlAttributeValueStyle.SingleQuotes),
-                                    new TagHelperAttributeNode("bound-required-int", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("class", factory.Markup("btn"), AttributeStructure.SingleQuotes),
+                                    new TagHelperAttributeNode("bound-required-int", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(string.Format(errorFormat, "bound-required-int", "input", intType), 19, 0, 19, 18)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(19, 0, 19, 18),
+                                "bound-required-int",
+                                "input",
+                                intType),
                         }
                     },
                     {
@@ -3394,12 +3354,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagAndEndTag,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("class", factory.Markup("btn"), HtmlAttributeValueStyle.SingleQuotes),
-                                    new TagHelperAttributeNode("bound-int", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("class", factory.Markup("btn"), AttributeStructure.SingleQuotes),
+                                    new TagHelperAttributeNode("bound-int", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(string.Format(errorFormat, "bound-int", "p", intType), 15, 0, 15, 9)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(15, 0, 15, 9),
+                                "bound-int",
+                                "p",
+                                intType),
                         }
                     },
                     {
@@ -3410,13 +3374,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("class", expression(14), HtmlAttributeValueStyle.SingleQuotes),
-                                    new TagHelperAttributeNode("bound-required-int", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("class", expression(14), AttributeStructure.SingleQuotes),
+                                    new TagHelperAttributeNode("bound-required-int", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormat, "bound-required-int", "input", intType), 33, 0, 33, 18)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(33, 0, 33, 18),
+                                "bound-required-int",
+                                "input",
+                                intType),
                         }
                     },
                     {
@@ -3427,12 +3394,16 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagAndEndTag,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("class", expression(10), HtmlAttributeValueStyle.SingleQuotes),
-                                    new TagHelperAttributeNode("bound-int", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("class", expression(10), AttributeStructure.SingleQuotes),
+                                    new TagHelperAttributeNode("bound-int", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(string.Format(errorFormat, "bound-int", "p", intType), 29, 0, 29, 9)
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(29, 0, 29, 9),
+                                "bound-int",
+                                "p",
+                                intType),
                         }
                     },
                     {
@@ -3444,22 +3415,24 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.SelfClosing,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("bound-required-int", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("class", expression(36), HtmlAttributeValueStyle.SingleQuotes),
-                                    new TagHelperAttributeNode("bound-required-string", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("class", expression(86), HtmlAttributeValueStyle.SingleQuotes),
-                                    new TagHelperAttributeNode("unbound-required", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("bound-required-int", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("class", expression(36), AttributeStructure.SingleQuotes),
+                                    new TagHelperAttributeNode("bound-required-string", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("class", expression(86), AttributeStructure.SingleQuotes),
+                                    new TagHelperAttributeNode("unbound-required", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormat, "bound-required-int", "input", intType), 10, 0, 10, 18),
-                            new RazorError(
-                                string.Format(errorFormat, "bound-required-string", "input", stringType),
-                                absoluteIndex: 57,
-                                lineIndex: 0,
-                                columnIndex: 57,
-                                length: 21),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(10, 0, 10, 18),
+                                "bound-required-int",
+                                "input",
+                                intType),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(57, 0, 57, 21),
+                                "bound-required-string",
+                                "input",
+                                stringType),
                         }
                     },
                     {
@@ -3471,17 +3444,29 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagAndEndTag,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("bound-int", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("class", expression(23), HtmlAttributeValueStyle.SingleQuotes),
-                                    new TagHelperAttributeNode("bound-string", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("class", expression(64), HtmlAttributeValueStyle.SingleQuotes),
-                                    new TagHelperAttributeNode("bound-string", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("bound-int", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("class", expression(23), AttributeStructure.SingleQuotes),
+                                    new TagHelperAttributeNode("bound-string", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("class", expression(64), AttributeStructure.SingleQuotes),
+                                    new TagHelperAttributeNode("bound-string", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(string.Format(errorFormat, "bound-int", "p", intType), 6, 0, 6, 9),
-                            new RazorError(string.Format(errorFormat, "bound-string", "p", stringType), 44, 0, 44, 12),
-                            new RazorError(string.Format(errorFormat, "bound-string", "p", stringType), 84, 0, 84, 12),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(6, 0, 6, 9),
+                                "bound-int",
+                                "p",
+                                intType),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(44, 0, 44, 12),
+                                "bound-string",
+                                "p",
+                                stringType),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(84, 0, 84, 12),
+                                "bound-string",
+                                "p",
+                                stringType),
                         }
                     },
                 };
@@ -3500,10 +3485,10 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                         factory.EmptyHtml(),
                         new StatementBlock(
                             factory.CodeTransition(),
-                            factory.MetaCode("{").Accepts(AcceptedCharacters.None),
+                            factory.MetaCode("{").Accepts(AcceptedCharactersInternal.None),
                             insideBuilder(),
                             factory.EmptyCSharp().AsStatement(),
-                            factory.MetaCode("}").Accepts(AcceptedCharacters.None)),
+                            factory.MetaCode("}").Accepts(AcceptedCharactersInternal.None)),
                         factory.EmptyHtml());
                 };
                 Action<MarkupBlock> updateDynamicChunkGenerators = (block) =>
@@ -3574,7 +3559,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 tagHelperBlock.Attributes[i] = new TagHelperAttributeNode(
                                     attribute.Name,
                                     blockBuilder.Build(),
-                                    attribute.ValueStyle);
+                                    attribute.AttributeStructure);
                             }
                         }
                     }
@@ -3588,12 +3573,15 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
 
                     data[1] = buildStatementBlock(() => data[1] as MarkupBlock);
 
-                    var errors = data[2] as RazorError[];
+                    var errors = data[2] as RazorDiagnostic[];
 
                     for (var i = 0; i < errors.Length; i++)
                     {
-                        var error = errors[i];
-                        error.Location = SourceLocationTracker.Advance(error.Location, "@{");
+                        var error = errors[i] as DefaultRazorDiagnostic;
+                        var currentErrorLocation = new SourceLocation(error.Span.AbsoluteIndex, error.Span.LineIndex, error.Span.CharacterIndex);
+                        var newErrorLocation = SourceLocationTracker.Advance(currentErrorLocation, "@{");
+                        var copiedDiagnostic = new DefaultRazorDiagnostic(error.Descriptor, new SourceSpan(newErrorLocation, error.Span.Length), error.Args);
+                        errors[i] = copiedDiagnostic;
                     }
                 }
 
@@ -3606,17 +3594,12 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             get
             {
                 var factory = new SpanFactory();
-                var noErrors = new RazorError[0];
-                var errorFormatUnclosed = "Found a malformed '{0}' tag helper. Tag helpers must have a start and " +
-                    "end tag or be self closing.";
-                var errorFormatNoCloseAngle = "Missing close angle for tag helper '{0}'.";
-                var errorFormatNoValue = "Attribute '{0}' on tag helper element '{1}' requires a value. Tag helper bound " +
-                    "attributes of type '{2}' cannot be empty or contain only whitespace.";
+                var noErrors = new RazorDiagnostic[0];
                 var stringType = typeof(string).FullName;
                 var intType = typeof(int).FullName;
 
                 // documentContent, expectedOutput, expectedErrors
-                return new TheoryData<string, MarkupBlock, RazorError[]>
+                return new TheoryData<string, MarkupBlock, RazorDiagnostic[]>
                 {
                     {
                         "<input unbound-required",
@@ -3626,18 +3609,14 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagAndEndTag,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("unbound-required", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("unbound-required", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormatNoCloseAngle, "input"),
-                                new SourceLocation(1, 0, 1),
-                                length: 5),
-                            new RazorError(
-                                string.Format(errorFormatUnclosed, "input"),
-                                new SourceLocation(1, 0, 1),
-                                length: 5),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 5), "input"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 5), "input"),
                         }
                     },
                     {
@@ -3648,24 +3627,19 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagAndEndTag,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("bound-required-string", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("bound-required-string", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormatNoCloseAngle, "input"),
-                                new SourceLocation(1, 0, 1),
-                                length: 5),
-                            new RazorError(
-                                string.Format(errorFormatUnclosed, "input"),
-                                new SourceLocation(1, 0, 1),
-                                length: 5),
-                            new RazorError(
-                                string.Format(errorFormatNoValue, "bound-required-string", "input", stringType),
-                                absoluteIndex: 7,
-                                lineIndex: 0,
-                                columnIndex: 7,
-                                length: 21),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 5), "input"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 5), "input"),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(7, 0, 7, 21),
+                                "bound-required-string",
+                                "input",
+                                stringType),
                         }
                     },
                     {
@@ -3676,24 +3650,19 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagAndEndTag,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("bound-required-int", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("bound-required-int", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormatNoCloseAngle, "input"),
-                                new SourceLocation(1, 0, 1),
-                                length: 5),
-                            new RazorError(
-                                string.Format(errorFormatUnclosed, "input"),
-                                new SourceLocation(1, 0, 1),
-                                length: 5),
-                            new RazorError(
-                                string.Format(errorFormatNoValue, "bound-required-int", "input", intType),
-                                absoluteIndex: 7,
-                                lineIndex: 0,
-                                columnIndex: 7,
-                                length: 18),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 5), "input"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 5), "input"),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(7, 0, 7, 18),
+                                "bound-required-int",
+                                "input",
+                                intType),
                         }
                     },
                     {
@@ -3704,32 +3673,26 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagAndEndTag,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("bound-required-int", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("unbound-required", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("bound-required-string", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("bound-required-int", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("unbound-required", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("bound-required-string", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormatNoCloseAngle, "input"),
-                                new SourceLocation(1, 0, 1),
-                                length: 5),
-                            new RazorError(
-                                string.Format(errorFormatUnclosed, "input"),
-                                new SourceLocation(1, 0, 1),
-                                length: 5),
-                            new RazorError(
-                                string.Format(errorFormatNoValue, "bound-required-int", "input", intType),
-                                absoluteIndex: 7,
-                                lineIndex: 0,
-                                columnIndex: 7,
-                                length: 18),
-                            new RazorError(
-                                string.Format(errorFormatNoValue, "bound-required-string", "input", stringType),
-                                absoluteIndex: 43,
-                                lineIndex: 0,
-                                columnIndex: 43,
-                                length: 21),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 5), "input"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 5), "input"),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(7, 0, 7, 18),
+                                "bound-required-int",
+                                "input",
+                                intType),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(43, 0, 43, 21),
+                                "bound-required-string",
+                                "input",
+                                stringType),
                         }
                     },
                     {
@@ -3740,20 +3703,19 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagAndEndTag,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("bound-string", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("bound-string", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormatNoCloseAngle, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                string.Format(errorFormatUnclosed, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                string.Format(errorFormatNoValue, "bound-string", "p", stringType), 3, 0, 3, 12),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(3, 0, 3, 12),
+                                "bound-string",
+                                "p",
+                                stringType),
                         }
                     },
                     {
@@ -3764,19 +3726,19 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagAndEndTag,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("bound-int", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("bound-int", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormatNoCloseAngle, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                string.Format(errorFormatUnclosed, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(string.Format(errorFormatNoValue, "bound-int", "p", intType), 3, 0, 3, 9),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(3, 0, 3, 9),
+                                "bound-int",
+                                "p",
+                                intType),
                         }
                     },
                     {
@@ -3787,22 +3749,25 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagAndEndTag,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("bound-int", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("bound-string", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("bound-int", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("bound-string", null, AttributeStructure.Minimized),
                                 })),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormatNoCloseAngle, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(
-                                string.Format(errorFormatUnclosed, "p"),
-                                new SourceLocation(1, 0, 1),
-                                length: 1),
-                            new RazorError(string.Format(errorFormatNoValue, "bound-int", "p", intType), 3, 0, 3, 9),
-                            new RazorError(
-                                string.Format(errorFormatNoValue, "bound-string", "p", stringType), 13, 0, 13, 12),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(3, 0, 3, 9),
+                                "bound-int",
+                                "p",
+                                intType),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(13, 0, 13, 12),
+                                "bound-string",
+                                "p",
+                                stringType),
                         }
                     },
                     {
@@ -3813,51 +3778,48 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                                 TagMode.StartTagAndEndTag,
                                 attributes: new List<TagHelperAttributeNode>()
                                 {
-                                    new TagHelperAttributeNode("bound-required-int", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("unbound-required", null, HtmlAttributeValueStyle.Minimized),
-                                    new TagHelperAttributeNode("bound-required-string", null, HtmlAttributeValueStyle.Minimized),
+                                    new TagHelperAttributeNode("bound-required-int", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("unbound-required", null, AttributeStructure.Minimized),
+                                    new TagHelperAttributeNode("bound-required-string", null, AttributeStructure.Minimized),
                                 },
                                 children: new MarkupTagHelperBlock(
                                     "p",
                                     TagMode.StartTagAndEndTag,
                                     attributes: new List<TagHelperAttributeNode>()
                                     {
-                                        new TagHelperAttributeNode("bound-int", null, HtmlAttributeValueStyle.Minimized),
-                                        new TagHelperAttributeNode("bound-string", null, HtmlAttributeValueStyle.Minimized),
+                                        new TagHelperAttributeNode("bound-int", null, AttributeStructure.Minimized),
+                                        new TagHelperAttributeNode("bound-string", null, AttributeStructure.Minimized),
                                     }))),
                         new[]
                         {
-                            new RazorError(
-                                string.Format(errorFormatNoCloseAngle, "input"),
-                                new SourceLocation(1, 0, 1),
-                                length: 5),
-                            new RazorError(
-                                string.Format(errorFormatUnclosed, "input"),
-                                new SourceLocation(1, 0, 1),
-                                length: 5),
-                            new RazorError(
-                                string.Format(errorFormatNoValue, "bound-required-int", "input", intType), 7, 0, 7, 18),
-                            new RazorError(
-                                string.Format(errorFormatNoValue, "bound-required-string", "input", stringType),
-                                absoluteIndex: 43,
-                                lineIndex: 0,
-                                columnIndex: 43,
-                                length: 21),
-                            new RazorError(
-                                string.Format(errorFormatNoCloseAngle, "p"),
-                                new SourceLocation(65, 0, 65),
-                                length: 1),
-                            new RazorError(
-                                string.Format(errorFormatUnclosed, "p"),
-                                new SourceLocation(65, 0, 65),
-                                length: 1),
-                            new RazorError(string.Format(errorFormatNoValue, "bound-int", "p", intType), 67, 0, 67, 9),
-                            new RazorError(
-                                string.Format(errorFormatNoValue, "bound-string", "p", stringType),
-                                absoluteIndex: 77,
-                                lineIndex: 0,
-                                columnIndex: 77,
-                                length: 12),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 5), "input"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(1, 0, 1), contentLength: 5), "input"),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(7, 0, 7, 18),
+                                "bound-required-int",
+                                "input",
+                                intType),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(43, 0, 43, 21),
+                                "bound-required-string",
+                                "input",
+                                stringType),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                                new SourceSpan(new SourceLocation(65, 0, 65), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(new SourceLocation(65, 0, 65), contentLength: 1), "p"),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(67, 0, 67, 9),
+                                "bound-int",
+                                "p",
+                                intType),
+                            RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                                new SourceSpan(77, 0, 77, 12),
+                                "bound-string",
+                                "p",
+                                stringType),
                         }
                     },
                 };
@@ -3877,54 +3839,54 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             var descriptors = new TagHelperDescriptor[]
             {
                 TagHelperDescriptorBuilder.Create("InputTagHelper1", "SomeAssembly")
-                    .TagMatchingRule(rule => 
+                    .TagMatchingRuleDescriptor(rule =>
                         rule
                         .RequireTagName("input")
-                        .RequireAttribute(attribute => attribute.Name("unbound-required")))
-                    .TagMatchingRule(rule =>
+                        .RequireAttributeDescriptor(attribute => attribute.Name("unbound-required")))
+                    .TagMatchingRuleDescriptor(rule =>
                         rule
                         .RequireTagName("input")
-                        .RequireAttribute(attribute => attribute.Name("bound-required-string")))
-                    .BindAttribute(attribute =>
+                        .RequireAttributeDescriptor(attribute => attribute.Name("bound-required-string")))
+                    .BoundAttributeDescriptor(attribute =>
                         attribute
                         .Name("bound-required-string")
                         .PropertyName("BoundRequiredString")
                         .TypeName(typeof(string).FullName))
                     .Build(),
                 TagHelperDescriptorBuilder.Create("InputTagHelper2", "SomeAssembly")
-                    .TagMatchingRule(rule =>
+                    .TagMatchingRuleDescriptor(rule =>
                         rule
                         .RequireTagName("input")
-                        .RequireAttribute(attribute => attribute.Name("bound-required-int")))
-                    .BindAttribute(attribute =>
+                        .RequireAttributeDescriptor(attribute => attribute.Name("bound-required-int")))
+                    .BoundAttributeDescriptor(attribute =>
                         attribute
                         .Name("bound-required-int")
                         .PropertyName("BoundRequiredInt")
                         .TypeName(typeof(int).FullName))
                     .Build(),
                 TagHelperDescriptorBuilder.Create("InputTagHelper3", "SomeAssembly")
-                    .TagMatchingRule(rule => rule.RequireTagName("input"))
-                    .BindAttribute(attribute =>
+                    .TagMatchingRuleDescriptor(rule => rule.RequireTagName("input"))
+                    .BoundAttributeDescriptor(attribute =>
                         attribute
                         .Name("int-dictionary")
                         .PropertyName("DictionaryOfIntProperty")
                         .TypeName(typeof(IDictionary<string, int>).Namespace + ".IDictionary<System.String, System.Int32>")
-                        .AsDictionary("int-prefix-", typeof(int).FullName))
-                    .BindAttribute(attribute =>
+                        .AsDictionaryAttribute("int-prefix-", typeof(int).FullName))
+                    .BoundAttributeDescriptor(attribute =>
                         attribute
                         .Name("string-dictionary")
                         .PropertyName("DictionaryOfStringProperty")
                         .TypeName(typeof(IDictionary<string, string>).Namespace + ".IDictionary<System.String, System.String>")
-                        .AsDictionary("string-prefix-", typeof(string).FullName))
+                        .AsDictionaryAttribute("string-prefix-", typeof(string).FullName))
                     .Build(),
                 TagHelperDescriptorBuilder.Create("PTagHelper", "SomeAssembly")
-                    .TagMatchingRule(rule => rule.RequireTagName("p"))
-                    .BindAttribute(attribute =>
+                    .TagMatchingRuleDescriptor(rule => rule.RequireTagName("p"))
+                    .BoundAttributeDescriptor(attribute =>
                         attribute
                         .Name("bound-string")
                         .PropertyName("BoundRequiredString")
                         .TypeName(typeof(string).FullName))
-                    .BindAttribute(attribute =>
+                    .BoundAttributeDescriptor(attribute =>
                         attribute
                         .Name("bound-int")
                         .PropertyName("BoundRequiredString")
@@ -3933,7 +3895,120 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             };
 
             // Act & Assert
-            EvaluateData(descriptors, documentContent, (MarkupBlock)expectedOutput, (RazorError[])expectedErrors);
+            EvaluateData(descriptors, documentContent, (MarkupBlock)expectedOutput, (RazorDiagnostic[])expectedErrors);
+        }
+
+        [Fact]
+        public void Rewrite_UnderstandsMinimizedBooleanBoundAttributes()
+        {
+            // Arrange
+            var documentContent = "<input boundbool boundbooldict-key />";
+            var descriptors = new TagHelperDescriptor[]
+            {
+                TagHelperDescriptorBuilder.Create("InputTagHelper", "SomeAssembly")
+                    .TagMatchingRuleDescriptor(rule =>
+                        rule
+                        .RequireTagName("input"))
+                    .BoundAttributeDescriptor(attribute =>
+                        attribute
+                        .Name("boundbool")
+                        .PropertyName("BoundBoolProp")
+                        .TypeName(typeof(bool).FullName))
+                    .BoundAttributeDescriptor(attribute =>
+                        attribute
+                        .Name("boundbooldict")
+                        .PropertyName("BoundBoolDictProp")
+                        .TypeName("System.Collections.Generic.IDictionary<string, bool>")
+                        .AsDictionary("boundbooldict-", typeof(bool).FullName))
+                    .Build(),
+            };
+
+            var expectedOutput = new MarkupBlock(
+                new MarkupTagHelperBlock(
+                    "input",
+                    TagMode.SelfClosing,
+                    attributes: new List<TagHelperAttributeNode>()
+                    {
+                        new TagHelperAttributeNode("boundbool", null, AttributeStructure.Minimized),
+                        new TagHelperAttributeNode("boundbooldict-key", null, AttributeStructure.Minimized),
+                    }));
+
+            // Act & Assert
+            EvaluateData(descriptors, documentContent, expectedOutput, new RazorDiagnostic[] { });
+        }
+
+        [Fact]
+        public void Rewrite_FeatureDisabled_AddsErrorForMinimizedBooleanBoundAttributes()
+        {
+            // Arrange
+            var documentContent = "<input boundbool boundbooldict-key />";
+            var descriptors = new TagHelperDescriptor[]
+            {
+                TagHelperDescriptorBuilder.Create("InputTagHelper", "SomeAssembly")
+                    .TagMatchingRuleDescriptor(rule =>
+                        rule
+                        .RequireTagName("input"))
+                    .BoundAttributeDescriptor(attribute =>
+                        attribute
+                        .Name("boundbool")
+                        .PropertyName("BoundBoolProp")
+                        .TypeName(typeof(bool).FullName))
+                    .BoundAttributeDescriptor(attribute =>
+                        attribute
+                        .Name("boundbooldict")
+                        .PropertyName("BoundBoolDictProp")
+                        .TypeName("System.Collections.Generic.IDictionary<string, bool>")
+                        .AsDictionary("boundbooldict-", typeof(bool).FullName))
+                    .Build(),
+            };
+
+            var featureFlags = new TestRazorParserFeatureFlags();
+
+            var expectedOutput = new MarkupBlock(
+                new MarkupTagHelperBlock(
+                    "input",
+                    TagMode.SelfClosing,
+                    attributes: new List<TagHelperAttributeNode>()
+                    {
+                        new TagHelperAttributeNode("boundbool", null, AttributeStructure.Minimized),
+                        new TagHelperAttributeNode("boundbooldict-key", null, AttributeStructure.Minimized),
+                    }));
+
+            var expectedErrors = new[]
+            {
+                RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                    new SourceSpan(7, 0, 7, 9),
+                    "boundbool",
+                    "input",
+                    "System.Boolean"),
+                RazorDiagnosticFactory.CreateTagHelper_EmptyBoundAttribute(
+                    new SourceSpan(17, 0, 17, 17),
+                    "boundbooldict-key",
+                    "input",
+                    "System.Boolean"),
+            };
+
+            // Act & Assert
+            EvaluateData(descriptors, documentContent, expectedOutput, expectedErrors, featureFlags: featureFlags);
+        }
+
+        private class TestRazorParserFeatureFlags : RazorParserFeatureFlags
+        {
+            public TestRazorParserFeatureFlags(
+                bool allowMinimizedBooleanTagHelperAttributes = false,
+                bool allowHtmlCommentsInTagHelper = false,
+                bool experimental_AllowConditionalDataDashAttributes = false)
+            {
+                AllowMinimizedBooleanTagHelperAttributes = allowMinimizedBooleanTagHelperAttributes;
+                AllowHtmlCommentsInTagHelpers = allowHtmlCommentsInTagHelper;
+                EXPERIMENTAL_AllowConditionalDataDashAttributes = experimental_AllowConditionalDataDashAttributes;
+            }
+
+            public override bool AllowMinimizedBooleanTagHelperAttributes { get; }
+
+            public override bool AllowHtmlCommentsInTagHelpers { get; }
+
+            public override bool EXPERIMENTAL_AllowConditionalDataDashAttributes { get; }
         }
     }
 }

@@ -3,12 +3,19 @@
 
 namespace Microsoft.AspNetCore.Razor.Language.Intermediate
 {
-    internal static class CommonAnnotations
+    public static class CommonAnnotations
     {
+        public static readonly object Imported = "Imported";
+
         public static readonly object PrimaryClass = "PrimaryClass";
 
         public static readonly object PrimaryMethod = "PrimaryMethod";
 
         public static readonly object PrimaryNamespace = "PrimaryNamespace";
+
+        public static class DefaultTagHelperExtension
+        {
+            public static readonly object TagHelperField = "TagHelperField";
+        }
     }
 }

@@ -44,9 +44,12 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         private readonly Stack<BlockBuilder> _blockStack;
         private TagHelperBlockTracker _currentTagHelperTracker;
         private BlockBuilder _currentBlock;
-        private string _currentParentTagName;
+        private RazorParserFeatureFlags _featureFlags;
 
-        public TagHelperParseTreeRewriter(string tagHelperPrefix, IEnumerable<TagHelperDescriptor> descriptors)
+        public TagHelperParseTreeRewriter(
+            string tagHelperPrefix,
+            IEnumerable<TagHelperDescriptor> descriptors,
+            RazorParserFeatureFlags featureFlags)
         {
             _tagHelperPrefix = tagHelperPrefix;
             _tagHelperBinder = new TagHelperBinder(tagHelperPrefix, descriptors);
@@ -54,7 +57,14 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             _blockStack = new Stack<BlockBuilder>();
             _attributeValueBuilder = new StringBuilder();
             _htmlAttributeTracker = new List<KeyValuePair<string, string>>();
+            _featureFlags = featureFlags;
         }
+
+        private TagBlockTracker CurrentTracker => _trackerStack.Count > 0 ? _trackerStack.Peek() : null;
+
+        private string CurrentParentTagName => CurrentTracker?.TagName;
+
+        private bool CurrentParentIsTagHelper => CurrentTracker?.IsTagHelper ?? false;
 
         public Block Rewrite(Block syntaxTree, ErrorSink errorSink)
         {
@@ -82,7 +92,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 {
                     var childBlock = (Block)child;
 
-                    if (childBlock.Type == BlockKind.Tag)
+                    if (childBlock.Type == BlockKindInternal.Tag)
                     {
                         if (TryRewriteTagHelper(childBlock, errorSink))
                         {
@@ -189,7 +199,11 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 // We're now in a start tag block, we first need to see if the tag block is a tag helper.
                 var elementAttributes = GetAttributeNameValuePairs(tagBlock);
 
-                tagHelperBinding = _tagHelperBinder.GetBinding(tagName, elementAttributes, _currentParentTagName);
+                tagHelperBinding = _tagHelperBinder.GetBinding(
+                    tagName,
+                    elementAttributes,
+                    CurrentParentTagName,
+                    CurrentParentIsTagHelper);
 
                 // If there aren't any TagHelperDescriptors registered then we aren't a TagHelper
                 if (tagHelperBinding == null)
@@ -216,6 +230,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 var builder = TagHelperBlockRewriter.Rewrite(
                     tagName,
                     validTagStructure,
+                    _featureFlags,
                     tagBlock,
                     tagHelperBinding,
                     errorSink);
@@ -256,8 +271,9 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 {
                     tagHelperBinding = _tagHelperBinder.GetBinding(
                         tagName,
-                        attributes: Enumerable.Empty<KeyValuePair<string, string>>(),
-                        parentTagName: _currentParentTagName);
+                        attributes: Array.Empty<KeyValuePair<string, string>>(),
+                        parentTagName: CurrentParentTagName,
+                        parentIsTagHelper: CurrentParentIsTagHelper);
 
                     // If there are not TagHelperDescriptors associated with the end tag block that also have no
                     // required attributes then it means we can't be a TagHelper, bail out.
@@ -273,16 +289,13 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
 
                         if (invalidRule != null)
                         {
-                            var typeName = descriptor.Metadata[TagHelperDescriptorBuilder.TypeNameKey];
-
                             // End tag TagHelper that states it shouldn't have an end tag.
                             errorSink.OnError(
-                                SourceLocationTracker.Advance(tagBlock.Start, "</"),
-                                LegacyResources.FormatTagHelperParseTreeRewriter_EndTagTagHelperMustNotHaveAnEndTag(
+                                RazorDiagnosticFactory.CreateParsing_TagHelperMustNotHaveAnEndTag(
+                                    new SourceSpan(SourceLocationTracker.Advance(tagBlock.Start, "</"), tagName.Length),
                                     tagName,
-                                    typeName,
-                                    invalidRule.TagStructure),
-                                tagName.Length);
+                                    descriptor.DisplayName,
+                                    invalidRule.TagStructure));
 
                             return false;
                         }
@@ -303,9 +316,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                         // Could not recover, the end tag helper has no corresponding start tag, create
                         // an error based on the current childBlock.
                         errorSink.OnError(
-                            SourceLocationTracker.Advance(tagBlock.Start, "</"),
-                            LegacyResources.FormatTagHelpersParseTreeRewriter_FoundMalformedTagHelper(tagName),
-                            tagName.Length);
+                            RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                                new SourceSpan(SourceLocationTracker.Advance(tagBlock.Start, "</"), tagName.Length), tagName));
 
                         return false;
                     }
@@ -316,7 +328,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         }
 
         // Internal for testing
-        internal IEnumerable<KeyValuePair<string, string>> GetAttributeNameValuePairs(Block tagBlock)
+        internal IReadOnlyList<KeyValuePair<string, string>> GetAttributeNameValuePairs(Block tagBlock)
         {
             // Need to calculate how many children we should take that represent the attributes.
             var childrenOffset = IsPartialTag(tagBlock) ? 0 : 1;
@@ -324,7 +336,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
 
             if (childCount <= 1)
             {
-                return Enumerable.Empty<KeyValuePair<string, string>>();
+                return Array.Empty<KeyValuePair<string, string>>();
             }
 
             _htmlAttributeTracker.Clear();
@@ -340,7 +352,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 {
                     var childBlock = (Block)child;
 
-                    if (childBlock.Type != BlockKind.Markup)
+                    if (childBlock.Type != BlockKindInternal.Markup)
                     {
                         // Anything other than markup blocks in the attribute area of tags mangles following attributes.
                         // It's also not supported by TagHelpers, bail early to avoid creating bad attribute value pairs.
@@ -478,21 +490,29 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         {
             if (HasAllowedChildren())
             {
-                var content = child.Content;
-                if (!string.IsNullOrWhiteSpace(content))
+                var isDisallowedContent = true;
+                if (_featureFlags.AllowHtmlCommentsInTagHelpers)
                 {
-                    var trimmedStart = content.TrimStart();
-                    var whitespace = content.Substring(0, content.Length - trimmedStart.Length);
-                    var errorStart = SourceLocationTracker.Advance(child.Start, whitespace);
-                    var length = trimmedStart.TrimEnd().Length;
-                    var allowedChildren = _currentTagHelperTracker.AllowedChildren;
-                    var allowedChildrenString = string.Join(", ", allowedChildren);
-                    errorSink.OnError(
-                        errorStart,
-                        LegacyResources.FormatTagHelperParseTreeRewriter_CannotHaveNonTagContent(
-                            _currentTagHelperTracker.TagName,
-                            allowedChildrenString),
-                        length);
+                    isDisallowedContent = !IsComment(child) && child.Kind != SpanKindInternal.Transition && child.Kind != SpanKindInternal.Code;
+                }
+
+                if (isDisallowedContent)
+                {
+                    var content = child.Content;
+                    if (!string.IsNullOrWhiteSpace(content))
+                    {
+                        var trimmedStart = content.TrimStart();
+                        var whitespace = content.Substring(0, content.Length - trimmedStart.Length);
+                        var errorStart = SourceLocationTracker.Advance(child.Start, whitespace);
+                        var length = trimmedStart.TrimEnd().Length;
+                        var allowedChildren = _currentTagHelperTracker.AllowedChildren;
+                        var allowedChildrenString = string.Join(", ", allowedChildren);
+                        errorSink.OnError(
+                            RazorDiagnosticFactory.CreateTagHelper_CannotHaveNonTagContent(
+                                new SourceSpan(errorStart, length),
+                                _currentTagHelperTracker.TagName,
+                                allowedChildrenString));
+                    }
                 }
             }
         }
@@ -510,10 +530,20 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 return;
             }
 
-            var currentTracker = _trackerStack.Count > 0 ? _trackerStack.Peek() : null;
+            if (!HasAllowedChildren())
+            {
+                return;
+            }
 
-            if (HasAllowedChildren() &&
-                !_currentTagHelperTracker.AllowedChildren.Contains(tagName, StringComparer.OrdinalIgnoreCase))
+            var tagHelperBinding = _tagHelperBinder.GetBinding(
+                tagName,
+                attributes: Array.Empty<KeyValuePair<string, string>>(),
+                parentTagName: CurrentParentTagName,
+                parentIsTagHelper: CurrentParentIsTagHelper);
+
+            // If we found a binding for the current tag, then it is a tag helper. Use the prefixed allowed children to compare.
+            var allowedChildren = tagHelperBinding != null ? _currentTagHelperTracker.PrefixedAllowedChildren : _currentTagHelperTracker.AllowedChildren;
+            if (!allowedChildren.Contains(tagName, StringComparer.OrdinalIgnoreCase))
             {
                 OnAllowedChildrenTagError(_currentTagHelperTracker, tagName, tagBlock, errorSink);
             }
@@ -535,13 +565,14 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             ErrorSink errorSink)
         {
             var allowedChildrenString = string.Join(", ", tracker.AllowedChildren);
-            var errorMessage = LegacyResources.FormatTagHelperParseTreeRewriter_InvalidNestedTag(
-                tagName,
-                tracker.TagName,
-                allowedChildrenString);
             var errorStart = GetTagDeclarationErrorStart(tagBlock);
 
-            errorSink.OnError(errorStart, errorMessage, tagName.Length);
+            errorSink.OnError(
+                RazorDiagnosticFactory.CreateTagHelper_InvalidNestedTag(
+                    new SourceSpan(errorStart, tagName.Length),
+                    tagName,
+                    tracker.TagName,
+                    allowedChildrenString));
         }
 
         private static void ValidateBinding(
@@ -564,16 +595,12 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                         // Can't have a set of TagHelpers that expect different structures.
                         if (baseStructure.HasValue && baseStructure != rule.TagStructure)
                         {
-                            var baseDescriptorTypeName = baseDescriptor.Metadata[TagHelperDescriptorBuilder.TypeNameKey];
-                            var descriptorTypeName = descriptor.Metadata[TagHelperDescriptorBuilder.TypeNameKey];
                             errorSink.OnError(
-                                tagBlock.Start,
-                                LegacyResources.FormatTagHelperParseTreeRewriter_InconsistentTagStructure(
-                                    baseDescriptorTypeName,
-                                    descriptorTypeName,
-                                    tagName,
-                                    nameof(TagMatchingRule.TagStructure)),
-                                tagBlock.Length);
+                                RazorDiagnosticFactory.CreateTagHelper_InconsistentTagStructure(
+                                    new SourceSpan(tagBlock.Start, tagBlock.Length),
+                                    baseDescriptor.DisplayName,
+                                    descriptor.DisplayName,
+                                    tagName));
                         }
 
                         baseDescriptor = descriptor;
@@ -591,9 +618,8 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 var errorStart = GetTagDeclarationErrorStart(tag);
 
                 errorSink.OnError(
-                    errorStart,
-                    LegacyResources.FormatTagHelpersParseTreeRewriter_MissingCloseAngle(tagName),
-                    tagName.Length);
+                    RazorDiagnosticFactory.CreateParsing_TagHelperMissingCloseAngle(
+                        new SourceSpan(errorStart, tagName.Length), tagName));
 
                 return false;
             }
@@ -614,7 +640,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             var tagEnd = tagBlock.Children[tagBlock.Children.Count - 1] as Span;
 
             // If our tag end is not a markup span it means it's some sort of code SyntaxTreeNode (not a valid format)
-            if (tagEnd != null && tagEnd.Kind == SpanKind.Markup)
+            if (tagEnd != null && tagEnd.Kind == SpanKindInternal.Markup)
             {
                 var endSymbol = tagEnd.Symbols.Count > 0 ?
                     tagEnd.Symbols[tagEnd.Symbols.Count - 1] as HtmlSymbol :
@@ -684,7 +710,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
 
             // text tags that are labeled as transitions should be ignored aka they're not tag helpers.
             return !string.Equals(tagName, SyntaxConstants.TextTagName, StringComparison.OrdinalIgnoreCase) ||
-                   childSpan.Kind != SpanKind.Transition;
+                   childSpan.Kind != SpanKindInternal.Transition;
         }
 
         private void TrackBlock(BlockBuilder builder)
@@ -749,10 +775,9 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 var malformedTagHelper = ((TagHelperBlockTracker)tracker).Builder;
 
                 errorSink.OnError(
-                    SourceLocationTracker.Advance(malformedTagHelper.Start, "<"),
-                    LegacyResources.FormatTagHelpersParseTreeRewriter_FoundMalformedTagHelper(
-                        malformedTagHelper.TagName),
-                    malformedTagHelper.TagName.Length);
+                    RazorDiagnosticFactory.CreateParsing_TagHelperFoundMalformedTagHelper(
+                        new SourceSpan(SourceLocationTracker.Advance(malformedTagHelper.Start, "<"), malformedTagHelper.TagName.Length),
+                        malformedTagHelper.TagName));
 
                 BuildCurrentlyTrackedTagHelperBlock(endTag: null);
             }
@@ -762,7 +787,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         {
             var child = tagBlock.Children[0];
 
-            if (tagBlock.Type != BlockKind.Tag || tagBlock.Children.Count == 0 || !(child is Span))
+            if (tagBlock.Type != BlockKindInternal.Tag || tagBlock.Children.Count == 0 || !(child is Span))
             {
                 return null;
             }
@@ -801,9 +826,21 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             return relevantSymbol.Type == HtmlSymbolType.ForwardSlash;
         }
 
+        internal static bool IsComment(Span span)
+        {
+            Block currentBlock = span.Parent;
+            while (currentBlock != null && currentBlock.Type != BlockKindInternal.Comment && currentBlock.Type != BlockKindInternal.HtmlComment)
+            {
+                currentBlock = currentBlock.Parent;
+            }
+
+            return currentBlock != null;
+        }
+
+
         private static void EnsureTagBlock(Block tagBlock)
         {
-            Debug.Assert(tagBlock.Type == BlockKind.Tag);
+            Debug.Assert(tagBlock.Type == BlockKindInternal.Tag);
             Debug.Assert(tagBlock.Children.First() is Span);
         }
 
@@ -816,14 +853,12 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
 
         private void PushTrackerStack(TagBlockTracker tracker)
         {
-            _currentParentTagName = tracker.TagName;
             _trackerStack.Push(tracker);
         }
 
         private TagBlockTracker PopTrackerStack()
         {
             var poppedTracker = _trackerStack.Pop();
-            _currentParentTagName = _trackerStack.Count > 0 ? _trackerStack.Peek().TagName : null;
 
             return poppedTracker;
         }
@@ -859,7 +894,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
                 {
                     AllowedChildren = Builder.BindingResult.Descriptors
                         .Where(descriptor => descriptor.AllowedChildTags != null)
-                        .SelectMany(descriptor => descriptor.AllowedChildTags)
+                        .SelectMany(descriptor => descriptor.AllowedChildTags.Select(childTag => childTag.Name))
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToList();
                 }

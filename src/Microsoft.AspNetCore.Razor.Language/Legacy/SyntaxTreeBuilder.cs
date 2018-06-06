@@ -17,19 +17,19 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
             _endBlock = EndBlock;
         }
 
-        public IEnumerable<BlockBuilder> ActiveBlocks => _blockStack;
+        public IReadOnlyCollection<BlockBuilder> ActiveBlocks => _blockStack;
 
         public BlockBuilder CurrentBlock => _blockStack.Peek();
 
         public Span LastSpan { get; private set; }
 
-        public AcceptedCharacters LastAcceptedCharacters
+        public AcceptedCharactersInternal LastAcceptedCharacters
         {
             get
             {
                 if (LastSpan == null)
                 {
-                    return AcceptedCharacters.None;
+                    return AcceptedCharactersInternal.None;
                 }
                 return LastSpan.EditHandler.AcceptedCharacters;
             }
@@ -39,7 +39,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         {
             if (_blockStack.Count == 0)
             {
-                throw new InvalidOperationException(LegacyResources.ParserContext_NoCurrentBlock);
+                throw new InvalidOperationException(Resources.ParserContext_NoCurrentBlock);
             }
             CurrentBlock.Children.Add(span);
             LastSpan = span;
@@ -49,7 +49,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         /// Starts a block of the specified type
         /// </summary>
         /// <param name="blockType">The type of the block to start</param>
-        public IDisposable StartBlock(BlockKind blockType)
+        public IDisposable StartBlock(BlockKindInternal blockType)
         {
             var builder = new BlockBuilder() { Type = blockType };
             _blockStack.Push(builder);
@@ -63,7 +63,7 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         {
             if (_blockStack.Count == 0)
             {
-                throw new InvalidOperationException(LegacyResources.EndBlock_Called_Without_Matching_StartBlock);
+                throw new InvalidOperationException(Resources.EndBlock_Called_Without_Matching_StartBlock);
             }
 
             if (_blockStack.Count > 1)
@@ -78,15 +78,17 @@ namespace Microsoft.AspNetCore.Razor.Language.Legacy
         {
             if (_blockStack.Count == 0)
             {
-                throw new InvalidOperationException(LegacyResources.ParserContext_CannotCompleteTree_NoRootBlock);
+                throw new InvalidOperationException(Resources.ParserContext_CannotCompleteTree_NoRootBlock);
             }
             if (_blockStack.Count != 1)
             {
-                throw new InvalidOperationException(LegacyResources.ParserContext_CannotCompleteTree_OutstandingBlocks);
+                throw new InvalidOperationException(Resources.ParserContext_CannotCompleteTree_OutstandingBlocks);
             }
 
             var rootBuilder = _blockStack.Pop();
             var root = rootBuilder.Build();
+
+            root.LinkNodes();
 
             return root;
         }

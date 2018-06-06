@@ -15,16 +15,16 @@ namespace Microsoft.AspNetCore.Razor.Language
         public void GetImports_CanQueryInformationOnNonExistentFileWithoutImports()
         {
             // Arrange
-            var project = new TestRazorProject();
-            var razorEngine = RazorEngine.Create();
-            var templateEngine = new RazorTemplateEngine(razorEngine, project)
+            var fileSystem = new TestRazorProjectFileSystem();
+            var razorEngine = RazorProjectEngine.Create().Engine;
+            var templateEngine = new RazorTemplateEngine(razorEngine, fileSystem)
             {
                 Options =
                 {
                     ImportsFileName = "MyImport.cshtml"
                 }
             };
-            var projectItemToQuery = project.GetItem("/Views/Home/Index.cshtml");
+            var projectItemToQuery = fileSystem.GetItem("/Views/Home/Index.cshtml");
 
             // Act
             var imports = templateEngine.GetImports(projectItemToQuery);
@@ -39,8 +39,8 @@ namespace Microsoft.AspNetCore.Razor.Language
             // Arrange
             var path = "/Views/Home/MyImport.cshtml";
             var projectItem = new TestRazorProjectItem(path);
-            var project = new TestRazorProject(new[] { projectItem });
-            var razorEngine = RazorEngine.Create();
+            var project = new TestRazorProjectFileSystem(new[] { projectItem });
+            var razorEngine = RazorProjectEngine.Create().Engine;
             var templateEngine = new RazorTemplateEngine(razorEngine, project)
             {
                 Options =
@@ -55,15 +55,15 @@ namespace Microsoft.AspNetCore.Razor.Language
 
             // Assert
             var import = Assert.Single(imports);
-            Assert.Equal(projectItem.Path, import.FileName);
+            Assert.Equal(projectItem.FilePath, import.FilePath);
         }
 
         [Fact]
         public void GenerateCode_ThrowsIfItemCannotBeFound()
         {
             // Arrange
-            var project = new TestRazorProject(new RazorProjectItem[] { });
-            var razorEngine = RazorEngine.Create();
+            var project = new TestRazorProjectFileSystem(new RazorProjectItem[] { });
+            var razorEngine = RazorProjectEngine.Create().Engine;
             var templateEngine = new RazorTemplateEngine(razorEngine, project);
 
             // Act & Assert
@@ -76,8 +76,8 @@ namespace Microsoft.AspNetCore.Razor.Language
         public void SettingOptions_ThrowsIfValueIsNull()
         {
             // Arrange
-            var project = new TestRazorProject(new RazorProjectItem[] { });
-            var razorEngine = RazorEngine.Create();
+            var project = new TestRazorProjectFileSystem(new RazorProjectItem[] { });
+            var razorEngine = RazorProjectEngine.Create().Engine;
             var templateEngine = new RazorTemplateEngine(razorEngine, project);
 
             // Act & Assert
@@ -92,8 +92,8 @@ namespace Microsoft.AspNetCore.Razor.Language
             // Arrange
             var path = "/Views/Home/Index.cshtml";
             var projectItem = new TestRazorProjectItem(path);
-            var project = new TestRazorProject(new[] { projectItem });
-            var razorEngine = RazorEngine.Create();
+            var project = new TestRazorProjectFileSystem(new[] { projectItem });
+            var razorEngine = RazorProjectEngine.Create().Engine;
             var templateEngine = new RazorTemplateEngine(razorEngine, project);
 
             // Act
@@ -110,8 +110,8 @@ namespace Microsoft.AspNetCore.Razor.Language
         {
             // Arrange
             var path = "/Views/Home/Index.cshtml";
-            var project = new TestRazorProject(new RazorProjectItem[] { });
-            var razorEngine = RazorEngine.Create();
+            var project = new TestRazorProjectFileSystem(new RazorProjectItem[] { });
+            var razorEngine = RazorProjectEngine.Create().Engine;
             var templateEngine = new RazorTemplateEngine(razorEngine, project);
 
             // Act & Assert
@@ -125,8 +125,8 @@ namespace Microsoft.AspNetCore.Razor.Language
             // Arrange
             var path = "/Views/Home/Index.cshtml";
             var projectItem = new TestRazorProjectItem(path);
-            var project = new TestRazorProject(new[] { projectItem });
-            var razorEngine = RazorEngine.Create();
+            var project = new TestRazorProjectFileSystem(new[] { projectItem });
+            var razorEngine = RazorProjectEngine.Create().Engine;
             var templateEngine = new RazorTemplateEngine(razorEngine, project);
 
             // Act
@@ -144,8 +144,8 @@ namespace Microsoft.AspNetCore.Razor.Language
             // Arrange
             var path = "/Views/Home/Index.cshtml";
             var projectItem = new TestRazorProjectItem(path);
-            var project = new TestRazorProject(new[] { projectItem });
-            var razorEngine = RazorEngine.Create();
+            var project = new TestRazorProjectFileSystem(new[] { projectItem });
+            var razorEngine = RazorProjectEngine.Create().Engine;
             var templateEngine = new RazorTemplateEngine(razorEngine, project);
 
             // Act - 1
@@ -168,8 +168,8 @@ namespace Microsoft.AspNetCore.Razor.Language
         {
             // Arrange
             var projectItem = new TestRazorProjectItem("/Views/Home/Index.cshtml");
-            var project = new TestRazorProject(new[] { projectItem });
-            var razorEngine = RazorEngine.Create();
+            var project = new TestRazorProjectFileSystem(new[] { projectItem });
+            var razorEngine = RazorProjectEngine.Create().Engine;
             var templateEngine = new RazorTemplateEngine(razorEngine, project)
             {
                 Options =
@@ -192,8 +192,8 @@ namespace Microsoft.AspNetCore.Razor.Language
             var projectItem = new TestRazorProjectItem("/Views/Home/Index.cshtml");
             var import1 = new TestRazorProjectItem("/MyImport.cshtml");
             var import2 = new TestRazorProjectItem("/Views/Home/MyImport.cshtml");
-            var project = new TestRazorProject(new[] { import1, import2, projectItem });
-            var razorEngine = RazorEngine.Create();
+            var project = new TestRazorProjectFileSystem(new[] { import1, import2, projectItem });
+            var razorEngine = RazorProjectEngine.Create().Engine;
             var templateEngine = new RazorTemplateEngine(razorEngine, project)
             {
                 Options =
@@ -207,8 +207,8 @@ namespace Microsoft.AspNetCore.Razor.Language
 
             // Assert
             Assert.Collection(codeDocument.Imports,
-                import => Assert.Equal("/MyImport.cshtml", import.FileName),
-                import => Assert.Equal("/Views/Home/MyImport.cshtml", import.FileName));
+                import => Assert.Equal("/MyImport.cshtml", import.FilePath),
+                import => Assert.Equal("/Views/Home/MyImport.cshtml", import.FilePath));
         }
 
         [Fact]
@@ -218,8 +218,8 @@ namespace Microsoft.AspNetCore.Razor.Language
             var projectItem = new TestRazorProjectItem("/Views/Home/Index.cshtml");
             var import1 = new TestRazorProjectItem("/MyImport.cshtml");
             var import2 = new TestRazorProjectItem("/Views/Home/MyImport.cshtml");
-            var project = new TestRazorProject(new[] { import1, import2, projectItem });
-            var razorEngine = RazorEngine.Create();
+            var project = new TestRazorProjectFileSystem(new[] { import1, import2, projectItem });
+            var razorEngine = RazorProjectEngine.Create().Engine;
             var defaultImport = RazorSourceDocument.ReadFrom(new MemoryStream(), "Default.cshtml");
             var templateEngine = new RazorTemplateEngine(razorEngine, project)
             {
@@ -236,8 +236,8 @@ namespace Microsoft.AspNetCore.Razor.Language
             // Assert
             Assert.Collection(codeDocument.Imports,
                 import => Assert.Same(defaultImport, import),
-                import => Assert.Equal("/MyImport.cshtml", import.FileName),
-                import => Assert.Equal("/Views/Home/MyImport.cshtml", import.FileName));
+                import => Assert.Equal("/MyImport.cshtml", import.FilePath),
+                import => Assert.Equal("/Views/Home/MyImport.cshtml", import.FilePath));
         }
 
         [Fact]
@@ -245,8 +245,8 @@ namespace Microsoft.AspNetCore.Razor.Language
         {
             // Arrange
             var projectItem = new TestRazorProjectItem("/Views/Home/Index.cshtml");
-            var project = new TestRazorProject(new[] { projectItem });
-            var razorEngine = RazorEngine.Create();
+            var project = new TestRazorProjectFileSystem(new[] { projectItem });
+            var razorEngine = RazorProjectEngine.Create().Engine;
             var defaultImport = RazorSourceDocument.ReadFrom(new MemoryStream(), "Default.cshtml");
             var templateEngine = new RazorTemplateEngine(razorEngine, project)
             {
@@ -269,8 +269,8 @@ namespace Microsoft.AspNetCore.Razor.Language
         {
             // Arrange
             var expected = new[] { "/Views/Home/MyImport.cshtml", "/Views/MyImport.cshtml", "/MyImport.cshtml" };
-            var project = new TestRazorProject();
-            var razorEngine = RazorEngine.Create();
+            var project = new TestRazorProjectFileSystem();
+            var razorEngine = RazorProjectEngine.Create().Engine;
             var templateEngine = new RazorTemplateEngine(razorEngine, project)
             {
                 Options =
@@ -283,7 +283,7 @@ namespace Microsoft.AspNetCore.Razor.Language
             var imports = templateEngine.GetImportItems("/Views/Home/Index.cshtml");
 
             // Assert
-            var paths = imports.Select(i => i.Path);
+            var paths = imports.Select(i => i.FilePath);
             Assert.Equal(expected, paths);
         }
 
@@ -293,9 +293,9 @@ namespace Microsoft.AspNetCore.Razor.Language
             // Arrange
             var expected = new[] { "/Views/Home/MyImport.cshtml", "/Views/MyImport.cshtml", "/MyImport.cshtml" };
             var projectItem = new TestRazorProjectItem("/Views/Home/Index.cshtml");
-            var project = new TestRazorProject(new[] { projectItem });
-            var razorEngine = RazorEngine.Create();
-            var templateEngine = new RazorTemplateEngine(razorEngine, project)
+            var fileSystem = new TestRazorProjectFileSystem(new[] { projectItem });
+            var razorEngine = RazorProjectEngine.Create().Engine;
+            var templateEngine = new RazorTemplateEngine(razorEngine, fileSystem)
             {
                 Options =
                 {
@@ -307,8 +307,53 @@ namespace Microsoft.AspNetCore.Razor.Language
             var imports = templateEngine.GetImportItems(projectItem);
 
             // Assert
-            var paths = imports.Select(i => i.Path);
+            var paths = imports.Select(i => i.FilePath);
             Assert.Equal(expected, paths);
+        }
+
+        [Fact]
+        public void CreateCodeDocument_WithFileSystemProject_ReturnsCorrectItems()
+        {
+            // Arrange
+            var testFolder = Path.Combine(
+                TestProject.GetProjectDirectory(typeof(DefaultRazorProjectFileSystemTest)),
+                "TestFiles",
+                "DefaultRazorProjectFileSystem");
+
+            var project = new DefaultRazorProjectFileSystem(testFolder);
+            var razorEngine = RazorProjectEngine.Create().Engine;
+            var templateEngine = new RazorTemplateEngine(razorEngine, project)
+            {
+                Options =
+                {
+                    ImportsFileName = "_ViewImports.cshtml"
+                }
+            };
+
+            // Act
+            var codeDocument = templateEngine.CreateCodeDocument("/Views/Home/Index.cshtml");
+
+            // Assert
+            Assert.Collection(
+                codeDocument.Imports,
+                item =>
+                {
+                    Assert.Equal(Path.Combine(testFolder, "_ViewImports.cshtml"), item.FilePath);
+                    Assert.Equal("_ViewImports.cshtml", item.RelativePath);
+
+                },
+                item =>
+                {
+                    Assert.Equal(Path.Combine(testFolder, "Views", "_ViewImports.cshtml"), item.FilePath);
+                    Assert.Equal(Path.Combine("Views", "_ViewImports.cshtml"), item.RelativePath);
+
+                },
+                item =>
+                {
+                    Assert.Equal(Path.Combine(testFolder, "Views", "Home", "_ViewImports.cshtml"), item.FilePath);
+                    Assert.Equal(Path.Combine("Views", "Home", "_ViewImports.cshtml"), item.RelativePath);
+
+                });
         }
     }
 }
